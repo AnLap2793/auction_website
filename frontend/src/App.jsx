@@ -1,107 +1,124 @@
-import React, { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, Spin, App as AntApp } from 'antd';
-import { HelmetProvider } from 'react-helmet-async';
-import { Provider } from 'react-redux';
-import { AuthProvider } from './context/AuthContext';
-import { SocketProvider } from './context/SocketContext';
-import { store } from './store';
-import MainLayout from './components/common/MainLayout';
-import AdminLayout from './components/common/AdminLayout';
-import ProtectedRoute from './components/common/ProtectedRoute';
-import AdminRoute from './components/common/AdminRoute';
-import './assets/styles/global.less';
-
-// Lazy-loaded pages
-const Home = lazy(() => import('./pages/Home'));
-const Login = lazy(() => import('./pages/Login'));
-const Register = lazy(() => import('./pages/Register'));
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const ResetPassword = lazy(() => import('./pages/ResetPassword'));
-const AuctionDetail = lazy(() => import('./pages/AuctionDetail'));
-const SearchResults = lazy(() => import('./pages/SearchResults'));
-const UserProfile = lazy(() => import('./pages/UserProfile'));
-const Checkout = lazy(() => import('./pages/Checkout'));
-const NotFound = lazy(() => import('./pages/NotFound'));
-
-// Admin pages
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
-const UsersList = lazy(() => import('./pages/admin/UsersList'));
-const AuctionsList = lazy(() => import('./pages/admin/AuctionsList'));
-const TransactionReports = lazy(() => import('./pages/admin/TransactionReports'));
-const Settings = lazy(() => import('./pages/admin/Settings'));
-
-const LoadingFallback = () => (
-  <div className="global-loading">
-    <Spin size="large" />
-  </div>
-);
+import 'antd/dist/reset.css';
+import '@ant-design/v5-patch-for-react-19';
+import {
+    BrowserRouter as Router,
+    Routes,
+    Route,
+    Navigate
+} from 'react-router-dom';
+import { ConfigProvider } from 'antd';
+import React, { useState } from 'react';
+import AdminLayout from './layouts/AdminLayout';
+import DashboardPage from './pages/admin/DashboardPage';
+import TransactionManagementPage from './pages/admin/TransactionManagementPage';
+import UserList from './pages/admin/UserManagement/UserList';
+import ProductList from './pages/admin/ProductManagement/ProductList';
+import AuctionList from './pages/admin/AuctionManagement/AuctionList';
+import NotFoundPage from './pages/public/NotFoundPage';
+import AdminLogin from './pages/admin/AdminLogin';
+import ProtectedAdminRoute from './pages/admin/ProtectedAdminRoute';
+import UserLayout from './layouts/UserLayout';
+import HomePage from './pages/public/HomePage';
+import Auctions from './pages/user/AuctionsPage';
+import Categories from './pages/user/CategoriesPage';
+import BiddingDetail from './pages/user/BiddingDetail';
+import SignIn from './pages/public/SignIn';
+import Register from './pages/public/RegisterPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from '../src/context/AuthContext';
+import About from './pages/public/About';
+import Contact from './pages/public/Contact';
 
 function App() {
-  return (
-    <HelmetProvider>
-      <Provider store={store}>
-        <ConfigProvider
-          theme={{
-            token: {
-              colorPrimary: '#1890ff',
-              borderRadius: 4,
-            },
-          }}
-        >
-          <AntApp>
+    const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+
+    return (
+        <ConfigProvider>
             <AuthProvider>
-              <SocketProvider>
                 <Router>
-                  <Suspense fallback={<LoadingFallback />}>
                     <Routes>
-                      {/* Public routes */}
-                      <Route path="/" element={<MainLayout />}>
-                        <Route index element={<Home />} />
-                        <Route path="login" element={<Login />} />
-                        <Route path="register" element={<Register />} />
-                        <Route path="forgot-password" element={<ForgotPassword />} />
-                        <Route path="reset-password" element={<ResetPassword />} />
-                        <Route path="auction/:id" element={<AuctionDetail />} />
-                        <Route path="search" element={<SearchResults />} />
-                      </Route>
+                        {/* User Routes */}
+                        <Route path='/' element={<UserLayout />}>
+                            <Route index element={<HomePage />} />
+                            <Route path='signin' element={<SignIn />} />
+                            <Route path='register' element={<Register />} />
+                            <Route path='auctions' element={<Auctions />} />
+                            <Route
+                                path='/auction/:id'
+                                element={
+                                    <ProtectedRoute>
+                                        <BiddingDetail />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route path='categories' element={<Categories />} />
+                            <Route path='contact' element={<Contact />} />
+                            <Route path='about' element={<About />} />
+                        </Route>
 
-                      {/* Protected routes */}
-                      <Route path="/" element={
-                        <ProtectedRoute>
-                          <MainLayout />
-                        </ProtectedRoute>
-                      }>
-                        <Route path="profile/*" element={<UserProfile />} />
-                        <Route path="checkout/:auctionId" element={<Checkout />} />
-                      </Route>
+                        {/* Admin Routes */}
+                        {/* Route đăng nhập admin */}
+                        <Route
+                            path='/admin/login'
+                            element={
+                                <AdminLogin
+                                    setIsAdminAuthenticated={
+                                        setIsAdminAuthenticated
+                                    }
+                                />
+                            }
+                        />
 
-                      {/* Admin routes */}
-                      <Route path="/admin" element={
-                        <AdminRoute>
-                          <AdminLayout />
-                        </AdminRoute>
-                      }>
-                        <Route index element={<Navigate to="/admin/dashboard" replace />} />
-                        <Route path="dashboard" element={<AdminDashboard />} />
-                        <Route path="users" element={<UsersList />} />
-                        <Route path="auctions" element={<AuctionsList />} />
-                        <Route path="reports" element={<TransactionReports />} />
-                        <Route path="settings" element={<Settings />} />
-                      </Route>
+                        {/* Bảo vệ các route admin */}
+                        <Route
+                            element={
+                                <ProtectedAdminRoute
+                                    isAdminAuthenticated={isAdminAuthenticated}
+                                />
+                            }
+                        >
+                            {/* Sử dụng AdminLayout làm layout chung cho các trang admin */}
+                            <Route
+                                path='/admin/*'
+                                element={
+                                    <AdminLayout
+                                        setIsAdminAuthenticated={
+                                            setIsAdminAuthenticated
+                                        }
+                                    />
+                                }
+                            >
+                                {/* Các route con của admin */}
+                                <Route index element={<DashboardPage />} />
+                                <Route path='users' element={<UserList />} />
+                                <Route
+                                    path='products'
+                                    element={<ProductList />}
+                                />
+                                <Route
+                                    path='auctions'
+                                    element={<AuctionList />}
+                                />
+                                <Route
+                                    path='transactions'
+                                    element={<TransactionManagementPage />}
+                                />
+                            </Route>
+                        </Route>
 
-                      {/* 404 route */}
-                      <Route path="*" element={<NotFound />} />
+                        {/* Mặc định chuyển hướng đến trang đăng nhập admin */}
+                        <Route
+                            path='/'
+                            element={<Navigate to='/admin/login' />}
+                        />
+
+                        {/* Trang 404 */}
+                        <Route path='*' element={<NotFoundPage />} />
                     </Routes>
-                  </Suspense>
                 </Router>
-              </SocketProvider>
             </AuthProvider>
-          </AntApp>
         </ConfigProvider>
-      </Provider>
-    </HelmetProvider>
-  );
+    );
 }
 
 export default App;
