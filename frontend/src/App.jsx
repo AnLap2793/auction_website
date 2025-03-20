@@ -28,6 +28,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from '../src/context/AuthContext';
 import About from './pages/public/About';
 import Contact from './pages/public/Contact';
+import MyProfile from './pages/user/MyProfile';
+import MyAuctions from './pages/user/MyAuction';
 
 function App() {
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
@@ -42,6 +44,22 @@ function App() {
                             <Route index element={<HomePage />} />
                             <Route path='signin' element={<SignIn />} />
                             <Route path='register' element={<Register />} />
+                            <Route
+                                path='/profile'
+                                element={
+                                    <ProtectedRoute>
+                                        <MyProfile />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path='/my-auctions'
+                                element={
+                                    <ProtectedRoute>
+                                        <MyAuctions />
+                                    </ProtectedRoute>
+                                }
+                            />
                             <Route path='auctions' element={<Auctions />} />
                             <Route
                                 path='/auction/:id'

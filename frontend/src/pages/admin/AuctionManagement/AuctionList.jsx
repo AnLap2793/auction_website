@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Card,
     Row,
@@ -7,11 +7,29 @@ import {
     Typography,
     Descriptions,
     Tag,
-    Table
+    Table,
+    Space,
+    Input,
+    Button,
+    Image,
+    Statistic,
+    Divider,
+    List,
+    Avatar
 } from 'antd';
+import {
+    SearchOutlined,
+    EditOutlined,
+    DeleteOutlined,
+    ClockCircleOutlined,
+    HistoryOutlined,
+    ShoppingOutlined,
+    EyeOutlined,
+    UserOutlined
+} from '@ant-design/icons';
 import moment from 'moment';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 // Giả lập dữ liệu từ API
 const mockData = [
@@ -51,8 +69,36 @@ const mockData = [
 ];
 
 const AuctionList = () => {
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [searchText, setSearchText] = useState('');
     const [selectedAuction, setSelectedAuction] = useState(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
+
+    // Khởi tạo dữ liệu từ mockData khi component mount
+    useEffect(() => {
+        setLoading(true);
+        // Giả lập delay khi gọi API
+        setTimeout(() => {
+            setData(mockData);
+            setLoading(false);
+        }, 500);
+    }, []);
+
+    // Hàm tìm kiếm
+    const handleSearch = (value) => {
+        setSearchText(value);
+        if (value.trim() === '') {
+            setData(mockData);
+        } else {
+            const filteredData = mockData.filter((item) =>
+                item.san_pham.tieu_de
+                    .toLowerCase()
+                    .includes(value.toLowerCase())
+            );
+            setData(filteredData);
+        }
+    };
 
     const handleRowClick = (auction) => {
         setSelectedAuction(auction);
@@ -61,7 +107,16 @@ const AuctionList = () => {
 
     const handleModalClose = () => {
         setIsModalVisible(false);
-        setSelectedAuction(null);
+    };
+
+    const handleEdit = () => {
+        console.log('Chỉnh sửa phiên đấu giá:', selectedAuction);
+        // Thêm logic xử lý chỉnh sửa ở đây
+    };
+
+    const handleDelete = () => {
+        console.log('Xóa phiên đấu giá:', selectedAuction);
+        // Thêm logic xử lý xóa ở đây
     };
 
     // Hàm hiển thị trạng thái phiên đấu giá
@@ -124,62 +179,103 @@ const AuctionList = () => {
 
     return (
         <div style={{ padding: '24px' }}>
-            <Title level={2}>Danh sách phiên đấu giá</Title>
+            <h1>Danh sách phiên đấu giá</h1>
+            <Space style={{ marginBottom: '16px' }}>
+                <Input
+                    placeholder='Tìm kiếm theo tên sản phẩm'
+                    prefix={<SearchOutlined />}
+                    value={searchText}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    style={{ width: 300 }}
+                />
+            </Space>
+
             <Table
-                dataSource={mockData}
-                columns={columns}
+                dataSource={data}
+                loading={loading}
                 rowKey='id'
                 onRow={(record) => ({
-                    onClick: () => handleRowClick(record)
+                    onClick: () => handleRowClick(record),
+                    style: { cursor: 'pointer' }
                 })}
-                pagination={{ pageSize: 5 }}
+                columns={columns}
             />
 
             <Modal
-                title='Chi tiết phiên đấu giá'
+                title={
+                    <Space>
+                        <ShoppingOutlined />
+                        <span>Chi tiết phiên đấu giá</span>
+                    </Space>
+                }
                 open={isModalVisible}
                 onCancel={handleModalClose}
                 footer={null}
                 width={800}
             >
                 {selectedAuction && (
-                    <Descriptions bordered column={1}>
-                        <Descriptions.Item label='Tên sản phẩm'>
-                            {selectedAuction.san_pham.tieu_de}
-                        </Descriptions.Item>
-                        <Descriptions.Item label='Người thắng'>
-                            {selectedAuction.nguoi_thang?.ho_ten || 'Chưa có'}
-                        </Descriptions.Item>
-                        <Descriptions.Item label='Thời gian bắt đầu'>
-                            {moment(selectedAuction.thoi_gian_bat_dau).format(
-                                'DD/MM/YYYY HH:mm'
-                            )}
-                        </Descriptions.Item>
-                        <Descriptions.Item label='Thời gian kết thúc'>
-                            {moment(selectedAuction.thoi_gian_ket_thuc).format(
-                                'DD/MM/YYYY HH:mm'
-                            )}
-                        </Descriptions.Item>
-                        <Descriptions.Item label='Bước giá'>
-                            {selectedAuction.buoc_gia.toLocaleString()} VND
-                        </Descriptions.Item>
-                        <Descriptions.Item label='Số lượt đăng ký'>
-                            {selectedAuction.so_luot_dang_ky}
-                        </Descriptions.Item>
-                        <Descriptions.Item label='Trạng thái'>
-                            {renderStatusTag(selectedAuction.trang_thai)}
-                        </Descriptions.Item>
-                        <Descriptions.Item label='Thời gian tạo'>
-                            {moment(selectedAuction.thoi_gian_tao).format(
-                                'DD/MM/YYYY HH:mm'
-                            )}
-                        </Descriptions.Item>
-                        <Descriptions.Item label='Thời gian cập nhật'>
-                            {moment(selectedAuction.thoi_gian_cap_nhat).format(
-                                'DD/MM/YYYY HH:mm'
-                            )}
-                        </Descriptions.Item>
-                    </Descriptions>
+                    <div>
+                        <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
+                            <Col span={24} style={{ textAlign: 'right' }}>
+                                <Space>
+                                    <Button
+                                        type='primary'
+                                        icon={<EditOutlined />}
+                                        onClick={handleEdit}
+                                    >
+                                        Chỉnh sửa
+                                    </Button>
+                                    <Button
+                                        type='primary'
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={handleDelete}
+                                    >
+                                        Xóa
+                                    </Button>
+                                </Space>
+                            </Col>
+                        </Row>
+
+                        <Descriptions bordered column={1}>
+                            <Descriptions.Item label='Tên sản phẩm'>
+                                {selectedAuction.san_pham.tieu_de}
+                            </Descriptions.Item>
+                            <Descriptions.Item label='Người thắng'>
+                                {selectedAuction.nguoi_thang?.ho_ten ||
+                                    'Chưa có'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label='Thời gian bắt đầu'>
+                                {moment(
+                                    selectedAuction.thoi_gian_bat_dau
+                                ).format('DD/MM/YYYY HH:mm')}
+                            </Descriptions.Item>
+                            <Descriptions.Item label='Thời gian kết thúc'>
+                                {moment(
+                                    selectedAuction.thoi_gian_ket_thuc
+                                ).format('DD/MM/YYYY HH:mm')}
+                            </Descriptions.Item>
+                            <Descriptions.Item label='Bước giá'>
+                                {selectedAuction.buoc_gia.toLocaleString()} VND
+                            </Descriptions.Item>
+                            <Descriptions.Item label='Số lượt đăng ký'>
+                                {selectedAuction.so_luot_dang_ky}
+                            </Descriptions.Item>
+                            <Descriptions.Item label='Trạng thái'>
+                                {renderStatusTag(selectedAuction.trang_thai)}
+                            </Descriptions.Item>
+                            <Descriptions.Item label='Thời gian tạo'>
+                                {moment(selectedAuction.thoi_gian_tao).format(
+                                    'DD/MM/YYYY HH:mm'
+                                )}
+                            </Descriptions.Item>
+                            <Descriptions.Item label='Thời gian cập nhật'>
+                                {moment(
+                                    selectedAuction.thoi_gian_cap_nhat
+                                ).format('DD/MM/YYYY HH:mm')}
+                            </Descriptions.Item>
+                        </Descriptions>
+                    </div>
                 )}
             </Modal>
         </div>
