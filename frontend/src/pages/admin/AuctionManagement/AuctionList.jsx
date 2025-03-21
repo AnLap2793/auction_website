@@ -15,21 +15,37 @@ import {
     Statistic,
     Divider,
     List,
-    Avatar
+    Avatar,
+    Form,
+    DatePicker,
+    InputNumber,
+    Select,
+    Tooltip,
+    Popconfirm
 } from 'antd';
 import {
     SearchOutlined,
     EditOutlined,
     DeleteOutlined,
-    ClockCircleOutlined,
-    HistoryOutlined,
+    SaveOutlined,
+    CloseCircleOutlined,
     ShoppingOutlined,
     EyeOutlined,
-    UserOutlined
+    UserOutlined,
+    HistoryOutlined,
+    FilterOutlined,
+    CheckCircleOutlined,
+    ClockCircleOutlined,
+    DollarOutlined,
+    TeamOutlined,
+    PlusOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
 
 const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
+const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 // Giả lập dữ liệu từ API
 const mockData = [
@@ -74,6 +90,12 @@ const AuctionList = () => {
     const [searchText, setSearchText] = useState('');
     const [selectedAuction, setSelectedAuction] = useState(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [form] = Form.useForm();
+    const [filters, setFilters] = useState({
+        status: 'all',
+        dateRange: null
+    });
 
     // Khởi tạo dữ liệu từ mockData khi component mount
     useEffect(() => {
@@ -110,8 +132,33 @@ const AuctionList = () => {
     };
 
     const handleEdit = () => {
-        console.log('Chỉnh sửa phiên đấu giá:', selectedAuction);
-        // Thêm logic xử lý chỉnh sửa ở đây
+        setIsEditing(true);
+        form.setFieldsValue({
+            tieu_de: selectedAuction.san_pham.tieu_de,
+            mo_ta: selectedAuction.san_pham.mo_ta,
+            danh_muc: selectedAuction.san_pham.danh_muc,
+            gia_khoi_diem: selectedAuction.gia_khoi_diem,
+            buoc_gia: selectedAuction.buoc_gia,
+            thoi_gian_bat_dau: moment(selectedAuction.thoi_gian_bat_dau),
+            thoi_gian_ket_thuc: moment(selectedAuction.thoi_gian_ket_thuc),
+            trang_thai: selectedAuction.trang_thai
+        });
+    };
+
+    const handleSave = async () => {
+        try {
+            const values = await form.validateFields();
+            console.log('Cập nhật thông tin phiên đấu giá:', values);
+            // Thêm logic cập nhật thông tin phiên đấu giá ở đây
+            setIsEditing(false);
+        } catch (error) {
+            console.error('Lỗi validation:', error);
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        form.resetFields();
     };
 
     const handleDelete = () => {
@@ -133,151 +180,542 @@ const AuctionList = () => {
         }
     };
 
+    const handleFilterChange = (type, value) => {
+        setFilters((prev) => ({
+            ...prev,
+            [type]: value
+        }));
+        filterData();
+    };
+
+    const filterData = () => {
+        let filteredData = [...mockData];
+
+        // Lọc theo trạng thái
+        if (filters.status !== 'all') {
+            filteredData = filteredData.filter(
+                (item) => item.trang_thai === filters.status
+            );
+        }
+
+        // Lọc theo thời gian
+        if (filters.dateRange) {
+            const [start, end] = filters.dateRange;
+            filteredData = filteredData.filter((item) => {
+                const auctionStart = moment(item.thoi_gian_bat_dau);
+                return auctionStart.isBetween(start, end, 'day', '[]');
+            });
+        }
+
+        setData(filteredData);
+    };
+
     // Cột cho bảng
     const columns = [
         {
-            title: 'Tên sản phẩm',
-            dataIndex: ['san_pham', 'tieu_de'],
-            key: 'san_pham'
+            title: 'Sản phẩm',
+            key: 'san_pham',
+            fixed: 'left',
+            width: 250,
+            render: (_, record) => (
+                <Space>
+                    <Avatar size={48} icon={<ShoppingOutlined />} />
+                    <Space direction='vertical' size={0}>
+                        <Text strong>{record.san_pham.tieu_de}</Text>
+                        <Text type='secondary'>ID: {record.san_pham.id}</Text>
+                    </Space>
+                </Space>
+            )
         },
         {
             title: 'Người thắng',
-            dataIndex: ['nguoi_thang', 'ho_ten'],
             key: 'nguoi_thang',
-            render: (text) => text || 'Chưa có'
+            width: 200,
+            render: (_, record) => (
+                <Space>
+                    <UserOutlined />
+                    <Text>{record.nguoi_thang?.ho_ten || 'Chưa có'}</Text>
+                </Space>
+            )
         },
         {
-            title: 'Thời gian bắt đầu',
-            dataIndex: 'thoi_gian_bat_dau',
-            key: 'thoi_gian_bat_dau',
-            render: (text) => moment(text).format('DD/MM/YYYY HH:mm')
+            title: 'Thời gian',
+            key: 'thoi_gian',
+            width: 300,
+            render: (_, record) => (
+                <Space direction='vertical' size={0}>
+                    <Text>
+                        <ClockCircleOutlined /> Bắt đầu:{' '}
+                        {moment(record.thoi_gian_bat_dau).format(
+                            'DD/MM/YYYY HH:mm'
+                        )}
+                    </Text>
+                    <Text>
+                        <ClockCircleOutlined /> Kết thúc:{' '}
+                        {moment(record.thoi_gian_ket_thuc).format(
+                            'DD/MM/YYYY HH:mm'
+                        )}
+                    </Text>
+                </Space>
+            )
         },
         {
-            title: 'Thời gian kết thúc',
-            dataIndex: 'thoi_gian_ket_thuc',
-            key: 'thoi_gian_ket_thuc',
-            render: (text) => moment(text).format('DD/MM/YYYY HH:mm')
-        },
-        {
-            title: 'Bước giá',
-            dataIndex: 'buoc_gia',
-            key: 'buoc_gia',
-            render: (text) => `${text.toLocaleString()} VND`
-        },
-        {
-            title: 'Số lượt đăng ký',
-            dataIndex: 'so_luot_dang_ky',
-            key: 'so_luot_dang_ky'
+            title: 'Thông tin đấu giá',
+            key: 'thong_tin',
+            width: 200,
+            render: (_, record) => (
+                <Space direction='vertical' size={0}>
+                    <Text>
+                        <DollarOutlined /> Bước giá:{' '}
+                        {record.buoc_gia.toLocaleString()} VNĐ
+                    </Text>
+                    <Text>
+                        <TeamOutlined /> Lượt đăng ký: {record.so_luot_dang_ky}
+                    </Text>
+                </Space>
+            )
         },
         {
             title: 'Trạng thái',
-            dataIndex: 'trang_thai',
             key: 'trang_thai',
-            render: (text) => renderStatusTag(text)
+            width: 150,
+            render: (_, record) => {
+                let color, icon, text;
+                switch (record.trang_thai) {
+                    case 'dang_dien_ra':
+                        color = 'success';
+                        icon = <CheckCircleOutlined />;
+                        text = 'Đang diễn ra';
+                        break;
+                    case 'sap_dien_ra':
+                        color = 'processing';
+                        icon = <ClockCircleOutlined />;
+                        text = 'Sắp diễn ra';
+                        break;
+                    case 'da_ket_thuc':
+                        color = 'default';
+                        icon = <CloseCircleOutlined />;
+                        text = 'Đã kết thúc';
+                        break;
+                    default:
+                        color = 'default';
+                        icon = <CloseCircleOutlined />;
+                        text = 'Không xác định';
+                }
+                return (
+                    <Tag color={color} icon={icon}>
+                        {text}
+                    </Tag>
+                );
+            }
+        },
+        {
+            title: 'Thao tác',
+            key: 'action',
+            fixed: 'right',
+            width: 120,
+            render: (_, record) => (
+                <Space>
+                    <Tooltip title='Chi tiết'>
+                        <Button
+                            type='primary'
+                            icon={<EyeOutlined />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleRowClick(record);
+                            }}
+                        />
+                    </Tooltip>
+                    <Tooltip title='Xóa'>
+                        <Popconfirm
+                            title='Xóa phiên đấu giá'
+                            description='Bạn có chắc chắn muốn xóa phiên đấu giá này?'
+                            onConfirm={(e) => {
+                                e.stopPropagation();
+                                handleDelete(record.id);
+                            }}
+                            okText='Xóa'
+                            cancelText='Hủy'
+                        >
+                            <Button
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </Popconfirm>
+                    </Tooltip>
+                </Space>
+            )
         }
     ];
 
     return (
         <div style={{ padding: '24px' }}>
-            <h1>Danh sách phiên đấu giá</h1>
-            <Space style={{ marginBottom: '16px' }}>
-                <Input
-                    placeholder='Tìm kiếm theo tên sản phẩm'
-                    prefix={<SearchOutlined />}
-                    value={searchText}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    style={{ width: 300 }}
-                />
-            </Space>
+            <Space direction='vertical' size='large' style={{ width: '100%' }}>
+                {/* Tiêu đề và thanh tìm kiếm */}
+                <Row justify='space-between' align='middle'>
+                    <Col>
+                        <Title level={2}>Quản lý phiên đấu giá</Title>
+                    </Col>
+                    <Col>
+                        <Space>
+                            <Input
+                                placeholder='Tìm kiếm phiên đấu giá...'
+                                prefix={<SearchOutlined />}
+                                style={{ width: 300 }}
+                                value={searchText}
+                                onChange={(e) => handleSearch(e.target.value)}
+                            />
+                            <Button icon={<FilterOutlined />}>Lọc</Button>
+                            <Button type='primary' icon={<PlusOutlined />}>
+                                Thêm phiên đấu giá
+                            </Button>
+                        </Space>
+                    </Col>
+                </Row>
 
-            <Table
-                dataSource={data}
-                loading={loading}
-                rowKey='id'
-                onRow={(record) => ({
-                    onClick: () => handleRowClick(record),
-                    style: { cursor: 'pointer' }
-                })}
-                columns={columns}
-            />
+                {/* Thống kê */}
+                <Row gutter={16}>
+                    <Col span={6}>
+                        <Card>
+                            <Statistic
+                                title='Tổng phiên đấu giá'
+                                value={data.length}
+                                prefix={<ShoppingOutlined />}
+                            />
+                        </Card>
+                    </Col>
+                    <Col span={6}>
+                        <Card>
+                            <Statistic
+                                title='Đang diễn ra'
+                                value={
+                                    data.filter(
+                                        (a) => a.trang_thai === 'dang_dien_ra'
+                                    ).length
+                                }
+                                valueStyle={{ color: '#3f8600' }}
+                                prefix={<CheckCircleOutlined />}
+                            />
+                        </Card>
+                    </Col>
+                    <Col span={6}>
+                        <Card>
+                            <Statistic
+                                title='Sắp diễn ra'
+                                value={
+                                    data.filter(
+                                        (a) => a.trang_thai === 'sap_dien_ra'
+                                    ).length
+                                }
+                                valueStyle={{ color: '#1890ff' }}
+                                prefix={<ClockCircleOutlined />}
+                            />
+                        </Card>
+                    </Col>
+                    <Col span={6}>
+                        <Card>
+                            <Statistic
+                                title='Đã kết thúc'
+                                value={
+                                    data.filter(
+                                        (a) => a.trang_thai === 'da_ket_thuc'
+                                    ).length
+                                }
+                                valueStyle={{ color: '#cf1322' }}
+                                prefix={<CloseCircleOutlined />}
+                            />
+                        </Card>
+                    </Col>
+                </Row>
 
-            <Modal
-                title={
+                {/* Bộ lọc */}
+                <Card>
                     <Space>
-                        <ShoppingOutlined />
-                        <span>Chi tiết phiên đấu giá</span>
+                        <Select
+                            style={{ width: 200 }}
+                            placeholder='Trạng thái'
+                            defaultValue='all'
+                            onChange={(value) =>
+                                handleFilterChange('status', value)
+                            }
+                        >
+                            <Option value='all'>Tất cả trạng thái</Option>
+                            <Option value='dang_dien_ra'>Đang diễn ra</Option>
+                            <Option value='sap_dien_ra'>Sắp diễn ra</Option>
+                            <Option value='da_ket_thuc'>Đã kết thúc</Option>
+                        </Select>
+                        <RangePicker
+                            onChange={(dates) =>
+                                handleFilterChange('dateRange', dates)
+                            }
+                            format='DD/MM/YYYY'
+                            placeholder={['Từ ngày', 'Đến ngày']}
+                        />
                     </Space>
-                }
-                open={isModalVisible}
-                onCancel={handleModalClose}
-                footer={null}
-                width={800}
-            >
-                {selectedAuction && (
-                    <div>
-                        <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
-                            <Col span={24} style={{ textAlign: 'right' }}>
-                                <Space>
-                                    <Button
-                                        type='primary'
-                                        icon={<EditOutlined />}
-                                        onClick={handleEdit}
-                                    >
-                                        Chỉnh sửa
-                                    </Button>
-                                    <Button
-                                        type='primary'
-                                        danger
-                                        icon={<DeleteOutlined />}
-                                        onClick={handleDelete}
-                                    >
-                                        Xóa
-                                    </Button>
-                                </Space>
-                            </Col>
-                        </Row>
+                </Card>
 
-                        <Descriptions bordered column={1}>
-                            <Descriptions.Item label='Tên sản phẩm'>
-                                {selectedAuction.san_pham.tieu_de}
-                            </Descriptions.Item>
-                            <Descriptions.Item label='Người thắng'>
-                                {selectedAuction.nguoi_thang?.ho_ten ||
-                                    'Chưa có'}
-                            </Descriptions.Item>
-                            <Descriptions.Item label='Thời gian bắt đầu'>
-                                {moment(
-                                    selectedAuction.thoi_gian_bat_dau
-                                ).format('DD/MM/YYYY HH:mm')}
-                            </Descriptions.Item>
-                            <Descriptions.Item label='Thời gian kết thúc'>
-                                {moment(
-                                    selectedAuction.thoi_gian_ket_thuc
-                                ).format('DD/MM/YYYY HH:mm')}
-                            </Descriptions.Item>
-                            <Descriptions.Item label='Bước giá'>
-                                {selectedAuction.buoc_gia.toLocaleString()} VND
-                            </Descriptions.Item>
-                            <Descriptions.Item label='Số lượt đăng ký'>
-                                {selectedAuction.so_luot_dang_ky}
-                            </Descriptions.Item>
-                            <Descriptions.Item label='Trạng thái'>
-                                {renderStatusTag(selectedAuction.trang_thai)}
-                            </Descriptions.Item>
-                            <Descriptions.Item label='Thời gian tạo'>
-                                {moment(selectedAuction.thoi_gian_tao).format(
-                                    'DD/MM/YYYY HH:mm'
-                                )}
-                            </Descriptions.Item>
-                            <Descriptions.Item label='Thời gian cập nhật'>
-                                {moment(
-                                    selectedAuction.thoi_gian_cap_nhat
-                                ).format('DD/MM/YYYY HH:mm')}
-                            </Descriptions.Item>
-                        </Descriptions>
-                    </div>
-                )}
-            </Modal>
+                {/* Bảng dữ liệu */}
+                <Table
+                    columns={columns}
+                    dataSource={data}
+                    loading={loading}
+                    rowKey='id'
+                    scroll={{ x: 1500 }}
+                    pagination={{
+                        total: data.length,
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: (total) => `Tổng ${total} phiên đấu giá`
+                    }}
+                />
+
+                {/* Modal chi tiết/chỉnh sửa */}
+                <Modal
+                    title={
+                        <Space>
+                            <ShoppingOutlined />
+                            <span>
+                                {isEditing
+                                    ? 'Chỉnh sửa phiên đấu giá'
+                                    : 'Chi tiết phiên đấu giá'}
+                            </span>
+                        </Space>
+                    }
+                    open={isModalVisible}
+                    onCancel={handleModalClose}
+                    footer={
+                        isEditing
+                            ? [
+                                  <Button
+                                      key='cancel'
+                                      onClick={handleCancelEdit}
+                                  >
+                                      Hủy
+                                  </Button>,
+                                  <Button
+                                      key='save'
+                                      type='primary'
+                                      icon={<SaveOutlined />}
+                                      onClick={handleSave}
+                                  >
+                                      Lưu
+                                  </Button>
+                              ]
+                            : [
+                                  <Button
+                                      key='edit'
+                                      type='primary'
+                                      icon={<EditOutlined />}
+                                      onClick={() => setIsEditing(true)}
+                                  >
+                                      Chỉnh sửa
+                                  </Button>,
+                                  <Button
+                                      key='close'
+                                      onClick={handleModalClose}
+                                  >
+                                      Đóng
+                                  </Button>
+                              ]
+                    }
+                    width={800}
+                >
+                    {selectedAuction && (
+                        <div>
+                            {isEditing ? (
+                                <Form
+                                    form={form}
+                                    layout='vertical'
+                                    initialValues={{
+                                        ...selectedAuction,
+                                        thoi_gian_bat_dau: moment(
+                                            selectedAuction.thoi_gian_bat_dau
+                                        ),
+                                        thoi_gian_ket_thuc: moment(
+                                            selectedAuction.thoi_gian_ket_thuc
+                                        )
+                                    }}
+                                >
+                                    <Row gutter={16}>
+                                        <Col span={12}>
+                                            <Form.Item
+                                                name={['san_pham', 'tieu_de']}
+                                                label='Tên sản phẩm'
+                                                rules={[
+                                                    {
+                                                        required: true,
+                                                        message:
+                                                            'Vui lòng nhập tên sản phẩm'
+                                                    }
+                                                ]}
+                                            >
+                                                <Input />
+                                            </Form.Item>
+                                        </Col>
+                                        <Col span={12}>
+                                            <Form.Item
+                                                name='buoc_gia'
+                                                label='Bước giá'
+                                                rules={[
+                                                    {
+                                                        required: true,
+                                                        message:
+                                                            'Vui lòng nhập bước giá'
+                                                    }
+                                                ]}
+                                            >
+                                                <InputNumber
+                                                    style={{ width: '100%' }}
+                                                    formatter={(value) =>
+                                                        `${value}`.replace(
+                                                            /\B(?=(\d{3})+(?!\d))/g,
+                                                            ','
+                                                        )
+                                                    }
+                                                    parser={(value) =>
+                                                        value.replace(
+                                                            /\$\s?|(,*)/g,
+                                                            ''
+                                                        )
+                                                    }
+                                                    addonAfter='VNĐ'
+                                                />
+                                            </Form.Item>
+                                        </Col>
+                                    </Row>
+                                    <Row gutter={16}>
+                                        <Col span={12}>
+                                            <Form.Item
+                                                name='thoi_gian_bat_dau'
+                                                label='Thời gian bắt đầu'
+                                                rules={[
+                                                    {
+                                                        required: true,
+                                                        message:
+                                                            'Vui lòng chọn thời gian bắt đầu'
+                                                    }
+                                                ]}
+                                            >
+                                                <DatePicker
+                                                    style={{ width: '100%' }}
+                                                    showTime
+                                                    format='DD/MM/YYYY HH:mm'
+                                                />
+                                            </Form.Item>
+                                        </Col>
+                                        <Col span={12}>
+                                            <Form.Item
+                                                name='thoi_gian_ket_thuc'
+                                                label='Thời gian kết thúc'
+                                                rules={[
+                                                    {
+                                                        required: true,
+                                                        message:
+                                                            'Vui lòng chọn thời gian kết thúc'
+                                                    }
+                                                ]}
+                                            >
+                                                <DatePicker
+                                                    style={{ width: '100%' }}
+                                                    showTime
+                                                    format='DD/MM/YYYY HH:mm'
+                                                />
+                                            </Form.Item>
+                                        </Col>
+                                    </Row>
+                                    <Form.Item
+                                        name='trang_thai'
+                                        label='Trạng thái'
+                                        rules={[
+                                            {
+                                                required: true,
+                                                message:
+                                                    'Vui lòng chọn trạng thái'
+                                            }
+                                        ]}
+                                    >
+                                        <Select>
+                                            <Option value='dang_dien_ra'>
+                                                Đang diễn ra
+                                            </Option>
+                                            <Option value='sap_dien_ra'>
+                                                Sắp diễn ra
+                                            </Option>
+                                            <Option value='da_ket_thuc'>
+                                                Đã kết thúc
+                                            </Option>
+                                        </Select>
+                                    </Form.Item>
+                                </Form>
+                            ) : (
+                                <Descriptions bordered column={2}>
+                                    <Descriptions.Item
+                                        label='Tên sản phẩm'
+                                        span={2}
+                                    >
+                                        {selectedAuction.san_pham.tieu_de}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='ID sản phẩm'>
+                                        {selectedAuction.san_pham.id}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Bước giá'>
+                                        <Text strong style={{ color: '#f50' }}>
+                                            {selectedAuction.buoc_gia.toLocaleString()}{' '}
+                                            VNĐ
+                                        </Text>
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Thời gian bắt đầu'>
+                                        {moment(
+                                            selectedAuction.thoi_gian_bat_dau
+                                        ).format('DD/MM/YYYY HH:mm')}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Thời gian kết thúc'>
+                                        {moment(
+                                            selectedAuction.thoi_gian_ket_thuc
+                                        ).format('DD/MM/YYYY HH:mm')}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Trạng thái'>
+                                        {renderStatusTag(
+                                            selectedAuction.trang_thai
+                                        )}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Số lượt đăng ký'>
+                                        {selectedAuction.so_luot_dang_ky}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item
+                                        label='Người thắng'
+                                        span={2}
+                                    >
+                                        {selectedAuction.nguoi_thang ? (
+                                            <Space>
+                                                <UserOutlined />
+                                                {
+                                                    selectedAuction.nguoi_thang
+                                                        .ho_ten
+                                                }
+                                            </Space>
+                                        ) : (
+                                            'Chưa có'
+                                        )}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Thời gian tạo'>
+                                        {moment(
+                                            selectedAuction.thoi_gian_tao
+                                        ).format('DD/MM/YYYY HH:mm')}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Cập nhật lần cuối'>
+                                        {moment(
+                                            selectedAuction.thoi_gian_cap_nhat
+                                        ).format('DD/MM/YYYY HH:mm')}
+                                    </Descriptions.Item>
+                                </Descriptions>
+                            )}
+                        </div>
+                    )}
+                </Modal>
+            </Space>
         </div>
     );
 };
