@@ -1,0 +1,44 @@
+# 💾 Bỏ qua thư mục node_modules (không cần push lên Git)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 📦 Bỏ qua thư mục build và output của dự án
+dist/
+build/
+out/
+coverage/
+
+# 🔧 Bỏ qua các file môi trường và cài đặt cá nhân
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# 🛠 Bỏ qua file lock và các file dependency không cần thiết
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 🔥 Bỏ qua cache của IDE (VSCode, JetBrains, Sublime)
+.vscode/
+.idea/
+*.sublime-workspace
+
+# ⚙️ Bỏ qua các file hệ thống không cần thiết
+.DS_Store
+Thumbs.db
+
+# 🏗 Bỏ qua các thư mục temp hoặc file log runtime
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pm2.log
+pids/
+*.pid
+*.seed
+*.pid.lock
