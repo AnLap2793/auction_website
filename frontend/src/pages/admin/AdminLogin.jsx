@@ -11,6 +11,7 @@ import {
 } from 'antd';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { setAdminToken } from '../../utils/tokenManager';
 
 const { Title, Text, Link } = Typography;
 
@@ -23,6 +24,9 @@ const AdminLogin = ({ setIsAdminAuthenticated }) => {
         // Giả lập quá trình đăng nhập admin
         setTimeout(() => {
             if (values.username === 'admin' && values.password === 'admin123') {
+                // Tạo token giả lập (trong thực tế sẽ nhận từ API)
+                const mockToken = 'mock_admin_token_' + Date.now();
+                setAdminToken(mockToken);
                 setIsAdminAuthenticated(true);
                 message.success('Đăng nhập thành công!');
                 navigate('/admin');

@@ -39,7 +39,7 @@ const User = sequelize.define('User', {
     type: DataTypes.TEXT,
     allowNull: false,
     validate: {
-      isIn: [['admin', 'seller', 'buyer']]
+      isIn: [['seller', 'buyer']]
     }
   },
   created_at: {

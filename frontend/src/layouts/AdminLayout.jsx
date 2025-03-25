@@ -25,6 +25,7 @@ import {
     HomeOutlined
 } from '@ant-design/icons';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { removeAdminToken } from '../utils/tokenManager';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -71,6 +72,7 @@ const AdminLayout = ({ setIsAdminAuthenticated }) => {
     };
 
     const handleLogout = () => {
+        removeAdminToken();
         setIsAdminAuthenticated(false);
         navigate('/admin/login');
     };

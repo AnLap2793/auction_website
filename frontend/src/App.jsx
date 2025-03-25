@@ -7,32 +7,35 @@ import {
     Navigate
 } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
-import React, { useState } from 'react';
-import AdminLayout from './layouts/AdminLayout';
-import DashboardPage from './pages/admin/DashboardPage';
-import TransactionManagementPage from './pages/admin/TransactionManagementPage';
-import UserList from './pages/admin/UserManagement/UserList';
-import ProductList from './pages/admin/ProductManagement/ProductList';
-import AuctionList from './pages/admin/AuctionManagement/AuctionList';
+import React, { useState, useEffect } from 'react';
 import NotFoundPage from './pages/public/NotFoundPage';
-import AdminLogin from './pages/admin/AdminLogin';
-import ProtectedAdminRoute from './pages/admin/ProtectedAdminRoute';
+import { AuthProvider } from './context/AuthContext';
+import { isValidAdminToken } from './utils/tokenManager';
+import { userRoutes, protectedUserRoutes } from './routes/UserRoutes';
+import { adminLoginRoute, adminRoutes } from './routes/AdminRoutes';
 import UserLayout from './layouts/UserLayout';
-import HomePage from './pages/public/HomePage';
-import Auctions from './pages/user/AuctionsPage';
-import Categories from './pages/user/CategoriesPage';
-import BiddingDetail from './pages/user/BiddingDetail';
-import SignIn from './pages/public/SignIn';
-import Register from './pages/public/RegisterPage';
+import AdminLayout from './layouts/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider } from '../src/context/AuthContext';
-import About from './pages/public/About';
-import Contact from './pages/public/Contact';
-import MyProfile from './pages/user/MyProfile';
-import MyAuctions from './pages/user/MyAuction';
+import AdminLogin from './pages/admin/AdminLogin';
 
 function App() {
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        // Kiểm tra token khi khởi động ứng dụng
+        const checkAdminAuth = () => {
+            const isValid = isValidAdminToken();
+            setIsAdminAuthenticated(isValid);
+            setIsLoading(false);
+        };
+
+        checkAdminAuth();
+    }, []);
+
+    if (isLoading) {
+        return null; // hoặc một loading spinner
+    }
 
     return (
         <ConfigProvider>
@@ -40,44 +43,35 @@ function App() {
                 <Router>
                     <Routes>
                         {/* User Routes */}
-                        <Route path='/' element={<UserLayout />}>
-                            <Route index element={<HomePage />} />
-                            <Route path='signin' element={<SignIn />} />
-                            <Route path='register' element={<Register />} />
+                        <Route element={<UserLayout />}>
+                            {/* Public User Routes */}
+                            {userRoutes.map((route) => (
+                                <Route
+                                    key={route.path}
+                                    path={route.path}
+                                    element={route.element}
+                                />
+                            ))}
+
+                            {/* Protected User Routes - Sử dụng AuthContext */}
                             <Route
-                                path='/profile'
                                 element={
-                                    <ProtectedRoute>
-                                        <MyProfile />
-                                    </ProtectedRoute>
+                                    <ProtectedRoute useAuthContext={true} />
                                 }
-                            />
-                            <Route
-                                path='/my-auctions'
-                                element={
-                                    <ProtectedRoute>
-                                        <MyAuctions />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route path='auctions' element={<Auctions />} />
-                            <Route
-                                path='/auction/:id'
-                                element={
-                                    <ProtectedRoute>
-                                        <BiddingDetail />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route path='categories' element={<Categories />} />
-                            <Route path='contact' element={<Contact />} />
-                            <Route path='about' element={<About />} />
+                            >
+                                {protectedUserRoutes.map((route) => (
+                                    <Route
+                                        key={route.path}
+                                        path={route.path}
+                                        element={route.element}
+                                    />
+                                ))}
+                            </Route>
                         </Route>
 
-                        {/* Admin Routes */}
-                        {/* Route đăng nhập admin */}
+                        {/* Admin Login Route */}
                         <Route
-                            path='/admin/login'
+                            path={adminLoginRoute.path}
                             element={
                                 <AdminLogin
                                     setIsAdminAuthenticated={
@@ -87,15 +81,17 @@ function App() {
                             }
                         />
 
-                        {/* Bảo vệ các route admin */}
+                        {/* Protected Admin Routes - Không sử dụng AuthContext */}
                         <Route
                             element={
-                                <ProtectedAdminRoute
-                                    isAdminAuthenticated={isAdminAuthenticated}
+                                <ProtectedRoute
+                                    isAuthenticated={isAdminAuthenticated}
+                                    redirectPath='/admin/login'
+                                    useAuthContext={false}
+                                    isAdmin={true}
                                 />
                             }
                         >
-                            {/* Sử dụng AdminLayout làm layout chung cho các trang admin */}
                             <Route
                                 path='/admin/*'
                                 element={
@@ -106,31 +102,17 @@ function App() {
                                     />
                                 }
                             >
-                                {/* Các route con của admin */}
-                                <Route index element={<DashboardPage />} />
-                                <Route path='users' element={<UserList />} />
-                                <Route
-                                    path='products'
-                                    element={<ProductList />}
-                                />
-                                <Route
-                                    path='auctions'
-                                    element={<AuctionList />}
-                                />
-                                <Route
-                                    path='transactions'
-                                    element={<TransactionManagementPage />}
-                                />
+                                {adminRoutes.map((route) => (
+                                    <Route
+                                        key={route.path}
+                                        path={route.path}
+                                        element={route.element}
+                                    />
+                                ))}
                             </Route>
                         </Route>
 
-                        {/* Mặc định chuyển hướng đến trang đăng nhập admin */}
-                        <Route
-                            path='/'
-                            element={<Navigate to='/admin/login' />}
-                        />
-
-                        {/* Trang 404 */}
+                        {/* 404 Page */}
                         <Route path='*' element={<NotFoundPage />} />
                     </Routes>
                 </Router>

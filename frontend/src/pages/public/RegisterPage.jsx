@@ -3,38 +3,66 @@ import {
     Form,
     Input,
     Button,
-    Checkbox,
     Card,
     Typography,
-    Divider,
-    message
+    notification,
+    Row,
+    Col
 } from 'antd';
 import {
     UserOutlined,
     LockOutlined,
     MailOutlined,
-    GoogleOutlined,
-    FacebookOutlined
+    PhoneOutlined,
+    EnvironmentOutlined
 } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const { Title, Text } = Typography;
 
-const Register = () => {
+const RegisterPage = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { register } = useAuth();
 
-    const onFinish = (values) => {
+    const onFinish = async (values) => {
         setLoading(true);
-        // Simulate registration delay
-        setTimeout(() => {
-            register(values.email);
-            message.success('Registration successful! You can now log in.');
-            navigate('/signin');
+        try {
+            const result = await register(
+                values.email,
+                values.password,
+                values.first_name,
+                values.last_name,
+                values.phone_number,
+                values.address
+            );
+
+            if (result.success) {
+                notification.success({
+                    message: 'Đăng ký thành công!',
+                    description: result.message,
+                    duration: 10
+                });
+                navigate('/login?verifyEmail=true');
+            } else {
+                notification.error({
+                    message: 'Đăng ký không thành công',
+                    description:
+                        result.message ||
+                        'Đã có lỗi xảy ra. Vui lòng thử lại sau!'
+                });
+            }
+        } catch (error) {
+            notification.error({
+                message: 'Đăng ký không thành công',
+                description:
+                    error.response?.data?.message ||
+                    'Đã có lỗi xảy ra. Vui lòng thử lại sau!'
+            });
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
     };
 
     return (
@@ -52,7 +80,7 @@ const Register = () => {
                 <Card
                     style={{
                         width: '100%',
-                        maxWidth: '420px',
+                        maxWidth: '520px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
                     }}
                 >
@@ -61,45 +89,66 @@ const Register = () => {
                             Create an Account
                         </Title>
                         <Text type='secondary'>
-                            Join AuctionMaster to start bidding on items
+                            Join AuctionMaster today and start bidding!
                         </Text>
                     </div>
 
                     <Form
                         name='register_form'
-                        initialValues={{ agree: true }}
                         onFinish={onFinish}
                         layout='vertical'
                         size='large'
                     >
-                        <Form.Item
-                            name='name'
-                            rules={[
-                                {
-                                    required: true,
-                                    message: 'Please enter your name!'
-                                }
-                            ]}
-                        >
-                            <Input
-                                prefix={
-                                    <UserOutlined className='site-form-item-icon' />
-                                }
-                                placeholder='Full Name'
-                            />
-                        </Form.Item>
+                        <Row gutter={16}>
+                            <Col span={12}>
+                                <Form.Item
+                                    name='first_name'
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: 'Vui lòng nhập tên!'
+                                        }
+                                    ]}
+                                >
+                                    <Input
+                                        prefix={
+                                            <UserOutlined className='site-form-item-icon' />
+                                        }
+                                        placeholder='Tên'
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item
+                                    name='last_name'
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: 'Vui lòng nhập họ!'
+                                        }
+                                    ]}
+                                >
+                                    <Input
+                                        prefix={
+                                            <UserOutlined className='site-form-item-icon' />
+                                        }
+                                        placeholder='Họ'
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
 
                         <Form.Item
                             name='email'
                             rules={[
                                 {
                                     required: true,
-                                    message: 'Please enter your email!'
+                                    message: 'Vui lòng nhập email!'
                                 },
                                 {
                                     type: 'email',
                                     message:
-                                        'Please enter a valid email address!'
+                                        'Vui lòng nhập một địa chỉ email hợp lệ!'
                                 }
                             ]}
                         >
@@ -112,16 +161,55 @@ const Register = () => {
                         </Form.Item>
 
                         <Form.Item
+                            name='phone_number'
+                            rules={[
+                                {
+                                    required: true,
+                                    message: 'Vui lòng nhập số điện thoại!'
+                                },
+                                {
+                                    pattern: /^[0-9]{10,11}$/,
+                                    message:
+                                        'Số điện thoại phải có 10-11 chữ số!'
+                                }
+                            ]}
+                        >
+                            <Input
+                                prefix={
+                                    <PhoneOutlined className='site-form-item-icon' />
+                                }
+                                placeholder='Số điện thoại'
+                            />
+                        </Form.Item>
+
+                        <Form.Item
+                            name='address'
+                            rules={[
+                                {
+                                    required: true,
+                                    message: 'Vui lòng nhập địa chỉ!'
+                                }
+                            ]}
+                        >
+                            <Input.TextArea
+                                prefix={
+                                    <EnvironmentOutlined className='site-form-item-icon' />
+                                }
+                                placeholder='Địa chỉ'
+                                rows={3}
+                            />
+                        </Form.Item>
+
+                        <Form.Item
                             name='password'
                             rules={[
                                 {
                                     required: true,
-                                    message: 'Please enter your password!'
+                                    message: 'Vui lòng nhập mật khẩu!'
                                 },
                                 {
-                                    min: 8,
-                                    message:
-                                        'Password must be at least 8 characters!'
+                                    min: 6,
+                                    message: 'Mật khẩu phải có ít nhất 6 ký tự!'
                                 }
                             ]}
                         >
@@ -129,17 +217,17 @@ const Register = () => {
                                 prefix={
                                     <LockOutlined className='site-form-item-icon' />
                                 }
-                                placeholder='Password'
+                                placeholder='Mật khẩu'
                             />
                         </Form.Item>
 
                         <Form.Item
-                            name='confirm'
+                            name='confirm_password'
                             dependencies={['password']}
                             rules={[
                                 {
                                     required: true,
-                                    message: 'Please confirm your password!'
+                                    message: 'Vui lòng xác nhận mật khẩu!'
                                 },
                                 ({ getFieldValue }) => ({
                                     validator(_, value) {
@@ -151,7 +239,7 @@ const Register = () => {
                                         }
                                         return Promise.reject(
                                             new Error(
-                                                'The passwords do not match!'
+                                                'Mật khẩu xác nhận không khớp!'
                                             )
                                         );
                                     }
@@ -162,31 +250,8 @@ const Register = () => {
                                 prefix={
                                     <LockOutlined className='site-form-item-icon' />
                                 }
-                                placeholder='Confirm Password'
+                                placeholder='Xác nhận mật khẩu'
                             />
-                        </Form.Item>
-
-                        <Form.Item
-                            name='agree'
-                            valuePropName='checked'
-                            rules={[
-                                {
-                                    validator: (_, value) =>
-                                        value
-                                            ? Promise.resolve()
-                                            : Promise.reject(
-                                                  new Error(
-                                                      'You must accept the terms and conditions'
-                                                  )
-                                              )
-                                }
-                            ]}
-                        >
-                            <Checkbox>
-                                I agree to the{' '}
-                                <Link to='/terms'>Terms of Service</Link> and{' '}
-                                <Link to='/privacy'>Privacy Policy</Link>
-                            </Checkbox>
                         </Form.Item>
 
                         <Form.Item>
@@ -196,42 +261,13 @@ const Register = () => {
                                 block
                                 loading={loading}
                             >
-                                Create Account
+                                Đăng ký
                             </Button>
                         </Form.Item>
 
                         <div style={{ textAlign: 'center' }}>
-                            <Text type='secondary'>
-                                Already have an account?{' '}
-                            </Text>
-                            <Link to='/signin'>Sign in</Link>
-                        </div>
-
-                        <Divider plain>or register with</Divider>
-
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <Button
-                                icon={<GoogleOutlined />}
-                                block
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                Google
-                            </Button>
-                            <Button
-                                icon={<FacebookOutlined />}
-                                block
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                Facebook
-                            </Button>
+                            <Text type='secondary'>Đã có tài khoản? </Text>
+                            <Link to='/login'>Đăng nhập ngay</Link>
                         </div>
                     </Form>
                 </Card>
@@ -240,4 +276,4 @@ const Register = () => {
     );
 };
 
-export default Register;
+export default RegisterPage;

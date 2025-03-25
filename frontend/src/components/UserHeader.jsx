@@ -47,7 +47,7 @@ const UserHeader = () => {
 
     const handleLogout = () => {
         logout();
-        navigate('/signin');
+        navigate('/login');
     };
 
     const authenticatedMenuItems = [
@@ -82,7 +82,7 @@ const UserHeader = () => {
         {
             key: '1',
             icon: <LoginOutlined />,
-            label: <Link to='/signin'>Sign In</Link>
+            label: <Link to='/login'>Sign In</Link>
         },
         {
             key: '2',
@@ -172,7 +172,7 @@ const UserHeader = () => {
                         {!isAuthenticated ? (
                             <Button
                                 type='primary'
-                                onClick={() => navigate('/signin')}
+                                onClick={() => navigate('/login')}
                             >
                                 Sign in
                             </Button>

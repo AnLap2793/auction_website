@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { sequelize } = require('./models');
 const syncDatabase = require('./utils/dbSync');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
@@ -18,7 +19,7 @@ const testDbConnection = async () => {
     console.log('Kết nối cơ sở dữ liệu thành công.');
     
     // Đồng bộ database 
-    // Cẩn thận: Tùy chọn force: true sẽ xóa dữ liệu hiện có
+    // Tùy chọn force: true sẽ xóa dữ liệu hiện có
     if (process.env.NODE_ENV === 'development') {
       await syncDatabase();
     }
@@ -29,8 +30,11 @@ const testDbConnection = async () => {
 
 testDbConnection();
 
+// Routes
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/auth', authRoutes);
+
 // Định nghĩa routes sẽ được thêm sau
-// app.use('/api/users', require('./routes/users'));
 // app.use('/api/categories', require('./routes/categories'));
 // app.use('/api/products', require('./routes/products'));
 // app.use('/api/auctions', require('./routes/auctions'));
@@ -39,9 +43,8 @@ testDbConnection();
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
-    success: false,
-    message: 'Có lỗi xảy ra trên máy chủ',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    status: 'error',
+    message: 'Đã xảy ra lỗi, vui lòng thử lại sau'
   });
 });
 

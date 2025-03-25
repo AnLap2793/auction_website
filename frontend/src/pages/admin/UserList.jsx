@@ -38,6 +38,7 @@ import {
     CloseCircleOutlined as CloseIcon
 } from '@ant-design/icons';
 import moment from 'moment';
+import { getUsers } from '../../services/apiUser';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -45,59 +46,59 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 // Dữ liệu mẫu
-const users = [
-    {
-        id: '1',
-        username: 'nguyenvana',
-        fullName: 'Nguyễn Văn A',
-        email: 'nguyenvana@example.com',
-        phone: '0901234567',
-        role: 'user',
-        status: 'active',
-        createdAt: '2024-01-01',
-        lastLogin: '2024-04-10 10:30:00',
-        avatar: 'https://xsgames.co/randomusers/avatar.php?g=male',
-        address: 'Hà Nội',
-        totalTransactions: 15,
-        totalAuctions: 25,
-        verifiedEmail: true,
-        verifiedPhone: true
-    },
-    {
-        id: '2',
-        username: 'tranthib',
-        fullName: 'Trần Thị B',
-        email: 'tranthib@example.com',
-        phone: '0909876543',
-        role: 'admin',
-        status: 'active',
-        createdAt: '2024-01-15',
-        lastLogin: '2024-04-09 15:20:00',
-        avatar: 'https://xsgames.co/randomusers/avatar.php?g=female',
-        address: 'Hồ Chí Minh',
-        totalTransactions: 5,
-        totalAuctions: 10,
-        verifiedEmail: true,
-        verifiedPhone: true
-    },
-    {
-        id: '3',
-        username: 'levanc',
-        fullName: 'Lê Văn C',
-        email: 'levanc@example.com',
-        phone: '0905555555',
-        role: 'user',
-        status: 'inactive',
-        createdAt: '2024-02-01',
-        lastLogin: '2024-03-15 09:00:00',
-        avatar: 'https://xsgames.co/randomusers/avatar.php?g=male',
-        address: 'Đà Nẵng',
-        totalTransactions: 0,
-        totalAuctions: 5,
-        verifiedEmail: false,
-        verifiedPhone: true
-    }
-];
+// const users = [
+//     {
+//         id: '1',
+//         username: 'nguyenvana',
+//         fullName: 'Nguyễn Văn A',
+//         email: 'nguyenvana@example.com',
+//         phone: '0901234567',
+//         role: 'user',
+//         status: 'active',
+//         createdAt: '2024-01-01',
+//         lastLogin: '2024-04-10 10:30:00',
+//         avatar: 'https://xsgames.co/randomusers/avatar.php?g=male',
+//         address: 'Hà Nội',
+//         totalTransactions: 15,
+//         totalAuctions: 25,
+//         verifiedEmail: true,
+//         verifiedPhone: true
+//     },
+//     {
+//         id: '2',
+//         username: 'tranthib',
+//         fullName: 'Trần Thị B',
+//         email: 'tranthib@example.com',
+//         phone: '0909876543',
+//         role: 'admin',
+//         status: 'active',
+//         createdAt: '2024-01-15',
+//         lastLogin: '2024-04-09 15:20:00',
+//         avatar: 'https://xsgames.co/randomusers/avatar.php?g=female',
+//         address: 'Hồ Chí Minh',
+//         totalTransactions: 5,
+//         totalAuctions: 10,
+//         verifiedEmail: true,
+//         verifiedPhone: true
+//     },
+//     {
+//         id: '3',
+//         username: 'levanc',
+//         fullName: 'Lê Văn C',
+//         email: 'levanc@example.com',
+//         phone: '0905555555',
+//         role: 'user',
+//         status: 'inactive',
+//         createdAt: '2024-02-01',
+//         lastLogin: '2024-03-15 09:00:00',
+//         avatar: 'https://xsgames.co/randomusers/avatar.php?g=male',
+//         address: 'Đà Nẵng',
+//         totalTransactions: 0,
+//         totalAuctions: 5,
+//         verifiedEmail: false,
+//         verifiedPhone: true
+//     }
+// ];
 
 const UserList = () => {
     const [data, setData] = useState([]);
@@ -117,11 +118,13 @@ const UserList = () => {
         fetchData();
     }, [filters]);
 
-    const fetchData = () => {
+    //getUsers
+    const fetchData = async () => {
         setLoading(true);
-        // Giả lập API call
-        setTimeout(() => {
-            let filteredData = [...users];
+        try {
+            const response = await getUsers();
+            setData(response.data.data);
+            let filteredData = response.data.data;
 
             // Lọc theo trạng thái
             if (filters.status !== 'all') {
@@ -164,8 +167,12 @@ const UserList = () => {
             }
 
             setData(filteredData);
+        } catch (error) {
+            console.error('Lỗi khi lấy dữ liệu:', error);
+            message.error('Không thể tải dữ liệu người dùng');
+        } finally {
             setLoading(false);
-        }, 500);
+        }
     };
 
     const handleSearch = (value) => {
@@ -185,12 +192,12 @@ const UserList = () => {
         setIsEditing(true);
         setIsModalVisible(true);
         form.setFieldsValue({
-            username: record.username,
-            fullName: record.fullName,
+            first_name: record.first_name,
+            last_name: record.last_name,
             email: record.email,
-            phone: record.phone,
+            phone_number: record.phone_number,
             role: record.role,
-            status: record.status,
+            is_active: record.is_active,
             address: record.address
         });
     };
@@ -198,57 +205,71 @@ const UserList = () => {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
-            console.log('Cập nhật thông tin người dùng:', values);
+            // TODO: Gọi API cập nhật thông tin người dùng
+            // const response = await updateUser(selectedUser.id, values);
             message.success('Cập nhật thông tin thành công');
             setIsEditing(false);
             setIsModalVisible(false);
             form.resetFields();
+            fetchData(); // Tải lại dữ liệu sau khi cập nhật
         } catch (error) {
             console.error('Lỗi validation:', error);
+            message.error('Có lỗi xảy ra khi cập nhật thông tin');
         }
     };
 
-    const handleDelete = (userId) => {
-        console.log('Xóa người dùng:', userId);
-        message.success('Xóa người dùng thành công');
+    const handleDelete = async (userId) => {
+        try {
+            // TODO: Gọi API xóa người dùng
+            // await deleteUser(userId);
+            message.success('Xóa người dùng thành công');
+            fetchData(); // Tải lại dữ liệu sau khi xóa
+        } catch (error) {
+            console.error('Lỗi khi xóa người dùng:', error);
+            message.error('Không thể xóa người dùng');
+        }
     };
 
-    const handleLockUser = (userId, currentStatus) => {
-        console.log('Thay đổi trạng thái người dùng:', userId, currentStatus);
-        message.success(
-            `${
-                currentStatus === 'active' ? 'Khóa' : 'Mở khóa'
-            } tài khoản thành công`
-        );
+    const handleLockUser = async (userId, currentStatus) => {
+        try {
+            // TODO: Gọi API khóa/mở khóa tài khoản
+            // await toggleUserStatus(userId, !currentStatus);
+            message.success(
+                `${currentStatus ? 'Khóa' : 'Mở khóa'} tài khoản thành công`
+            );
+            fetchData(); // Tải lại dữ liệu sau khi thay đổi trạng thái
+        } catch (error) {
+            console.error('Lỗi khi thay đổi trạng thái:', error);
+            message.error('Không thể thay đổi trạng thái tài khoản');
+        }
     };
 
     const getRoleTag = (role) => {
         switch (role) {
             case 'admin':
                 return <Tag color='red'>Admin</Tag>;
-            case 'user':
-                return <Tag color='blue'>User</Tag>;
+            case 'seller':
+                return <Tag color='green'>Người bán</Tag>;
+            case 'buyer':
+                return <Tag color='blue'>Người mua</Tag>;
             default:
                 return <Tag>Không xác định</Tag>;
         }
     };
 
-    const getStatusTag = (status) => {
-        switch (status) {
-            case 'active':
-                return (
-                    <Tag icon={<CheckCircleOutlined />} color='success'>
-                        Hoạt động
-                    </Tag>
-                );
-            case 'inactive':
-                return (
-                    <Tag icon={<CloseCircleOutlined />} color='error'>
-                        Đã khóa
-                    </Tag>
-                );
-            default:
-                return <Tag>Không xác định</Tag>;
+    const getStatusTag = (isActive) => {
+        if (isActive) {
+            return (
+                <Tag icon={<CheckCircleOutlined />} color='success'>
+                    Online
+                </Tag>
+            );
+        } else {
+            return (
+                <Tag icon={<CloseCircleOutlined />} color='error'>
+                    Offline
+                </Tag>
+            );
         }
     };
 
@@ -266,8 +287,10 @@ const UserList = () => {
                         icon={<UserOutlined />}
                     />
                     <Space direction='vertical' size={0}>
-                        <Text strong>{record.fullName}</Text>
-                        <Text type='secondary'>{record.username}</Text>
+                        <Text
+                            strong
+                        >{`${record.first_name} ${record.last_name}`}</Text>
+                        <Text type='secondary'>{record.email}</Text>
                     </Space>
                 </Space>
             )
@@ -281,16 +304,13 @@ const UserList = () => {
                     <Space>
                         <MailOutlined />
                         <Text>{record.email}</Text>
-                        {record.verifiedEmail && (
+                        {record.is_verified && (
                             <CheckCircleOutlined style={{ color: '#52c41a' }} />
                         )}
                     </Space>
                     <Space>
                         <PhoneOutlined />
-                        <Text>{record.phone}</Text>
-                        {record.verifiedPhone && (
-                            <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                        )}
+                        <Text>{record.phone_number}</Text>
                     </Space>
                 </Space>
             )
@@ -300,37 +320,51 @@ const UserList = () => {
             dataIndex: 'role',
             key: 'role',
             width: 100,
-            render: (role) => getRoleTag(role)
+            render: (role) => {
+                switch (role) {
+                    case 'admin':
+                        return <Tag color='red'>Admin</Tag>;
+                    case 'seller':
+                        return <Tag color='green'>Người bán</Tag>;
+                    case 'buyer':
+                        return <Tag color='blue'>Người mua</Tag>;
+                    default:
+                        return <Tag>Không xác định</Tag>;
+                }
+            }
         },
         {
             title: 'Trạng thái',
-            dataIndex: 'status',
-            key: 'status',
+            dataIndex: 'is_active',
+            key: 'is_active',
             width: 120,
-            render: (status) => getStatusTag(status)
-        },
-        {
-            title: 'Hoạt động',
-            key: 'activity',
-            width: 200,
-            render: (_, record) => (
-                <Space direction='vertical' size={0}>
-                    <Text>{record.totalTransactions} giao dịch</Text>
-                    <Text>{record.totalAuctions} đấu giá</Text>
-                </Space>
-            )
+            render: (isActive) => {
+                if (isActive) {
+                    return (
+                        <Tag icon={<CheckCircleOutlined />} color='success'>
+                            Hoạt động
+                        </Tag>
+                    );
+                } else {
+                    return (
+                        <Tag icon={<CloseCircleOutlined />} color='error'>
+                            Đã khóa
+                        </Tag>
+                    );
+                }
+            }
         },
         {
             title: 'Ngày tạo',
-            dataIndex: 'createdAt',
-            key: 'createdAt',
+            dataIndex: 'created_at',
+            key: 'created_at',
             width: 120,
             render: (date) => moment(date).format('DD/MM/YYYY')
         },
         {
-            title: 'Đăng nhập cuối',
-            dataIndex: 'lastLogin',
-            key: 'lastLogin',
+            title: 'Cập nhật cuối',
+            dataIndex: 'updated_at',
+            key: 'updated_at',
             width: 150,
             render: (date) => moment(date).format('DD/MM/YYYY HH:mm')
         },
@@ -349,27 +383,19 @@ const UserList = () => {
                         />
                     </Tooltip>
                     <Tooltip
-                        title={
-                            record.status === 'active'
-                                ? 'Khóa tài khoản'
-                                : 'Mở khóa'
-                        }
+                        title={record.is_active ? 'Khóa tài khoản' : 'Mở khóa'}
                     >
                         <Button
-                            type={
-                                record.status === 'active'
-                                    ? 'default'
-                                    : 'primary'
-                            }
+                            type={record.is_active ? 'default' : 'primary'}
                             icon={
-                                record.status === 'active' ? (
+                                record.is_active ? (
                                     <LockOutlined />
                                 ) : (
                                     <UnlockOutlined />
                                 )
                             }
                             onClick={() =>
-                                handleLockUser(record.id, record.status)
+                                handleLockUser(record.id, record.is_active)
                             }
                         />
                     </Tooltip>
@@ -406,9 +432,6 @@ const UserList = () => {
                                 onChange={(e) => handleSearch(e.target.value)}
                             />
                             <Button icon={<FilterOutlined />}>Lọc</Button>
-                            <Button type='primary' icon={<PlusOutlined />}>
-                                Thêm người dùng
-                            </Button>
                         </Space>
                     </Col>
                 </Row>
@@ -573,13 +596,13 @@ const UserList = () => {
                                     <Row gutter={16}>
                                         <Col span={12}>
                                             <Form.Item
-                                                name='username'
-                                                label='Tên đăng nhập'
+                                                name='first_name'
+                                                label='Tên'
                                                 rules={[
                                                     {
                                                         required: true,
                                                         message:
-                                                            'Vui lòng nhập tên đăng nhập'
+                                                            'Vui lòng nhập tên'
                                                     }
                                                 ]}
                                             >
@@ -588,13 +611,13 @@ const UserList = () => {
                                         </Col>
                                         <Col span={12}>
                                             <Form.Item
-                                                name='fullName'
-                                                label='Họ và tên'
+                                                name='last_name'
+                                                label='Họ'
                                                 rules={[
                                                     {
                                                         required: true,
                                                         message:
-                                                            'Vui lòng nhập họ và tên'
+                                                            'Vui lòng nhập họ'
                                                     }
                                                 ]}
                                             >
@@ -625,7 +648,7 @@ const UserList = () => {
                                         </Col>
                                         <Col span={12}>
                                             <Form.Item
-                                                name='phone'
+                                                name='phone_number'
                                                 label='Số điện thoại'
                                                 rules={[
                                                     {
@@ -656,15 +679,18 @@ const UserList = () => {
                                                     <Option value='admin'>
                                                         Admin
                                                     </Option>
-                                                    <Option value='user'>
-                                                        User
+                                                    <Option value='seller'>
+                                                        Người bán
+                                                    </Option>
+                                                    <Option value='buyer'>
+                                                        Người mua
                                                     </Option>
                                                 </Select>
                                             </Form.Item>
                                         </Col>
                                         <Col span={12}>
                                             <Form.Item
-                                                name='status'
+                                                name='is_active'
                                                 label='Trạng thái'
                                                 rules={[
                                                     {
@@ -675,10 +701,10 @@ const UserList = () => {
                                                 ]}
                                             >
                                                 <Select>
-                                                    <Option value='active'>
+                                                    <Option value={true}>
                                                         Hoạt động
                                                     </Option>
-                                                    <Option value='inactive'>
+                                                    <Option value={false}>
                                                         Khóa
                                                     </Option>
                                                 </Select>
@@ -698,16 +724,10 @@ const UserList = () => {
                                             icon={<UserOutlined />}
                                         />
                                     </Descriptions.Item>
-                                    <Descriptions.Item label='Tên đăng nhập'>
-                                        {selectedUser.username}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label='Họ và tên'>
-                                        {selectedUser.fullName}
-                                    </Descriptions.Item>
                                     <Descriptions.Item label='Email'>
                                         <Space>
                                             {selectedUser.email}
-                                            {selectedUser.verifiedEmail && (
+                                            {selectedUser.is_verified && (
                                                 <CheckCircleOutlined
                                                     style={{ color: '#52c41a' }}
                                                 />
@@ -715,52 +735,70 @@ const UserList = () => {
                                         </Space>
                                     </Descriptions.Item>
                                     <Descriptions.Item label='Số điện thoại'>
-                                        <Space>
-                                            {selectedUser.phone}
-                                            {selectedUser.verifiedPhone && (
-                                                <CheckCircleOutlined
-                                                    style={{ color: '#52c41a' }}
-                                                />
-                                            )}
-                                        </Space>
+                                        {selectedUser.phone_number}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Họ và tên'>
+                                        {`${selectedUser.first_name} ${selectedUser.last_name}`}
                                     </Descriptions.Item>
                                     <Descriptions.Item label='Vai trò'>
-                                        {getRoleTag(selectedUser.role)}
+                                        {(() => {
+                                            switch (selectedUser.role) {
+                                                case 'admin':
+                                                    return (
+                                                        <Tag color='red'>
+                                                            Admin
+                                                        </Tag>
+                                                    );
+                                                case 'seller':
+                                                    return (
+                                                        <Tag color='green'>
+                                                            Người bán
+                                                        </Tag>
+                                                    );
+                                                case 'buyer':
+                                                    return (
+                                                        <Tag color='blue'>
+                                                            Người mua
+                                                        </Tag>
+                                                    );
+                                                default:
+                                                    return (
+                                                        <Tag>
+                                                            Không xác định
+                                                        </Tag>
+                                                    );
+                                            }
+                                        })()}
                                     </Descriptions.Item>
                                     <Descriptions.Item label='Trạng thái'>
-                                        {getStatusTag(selectedUser.status)}
+                                        {selectedUser.is_active ? (
+                                            <Tag
+                                                icon={<CheckCircleOutlined />}
+                                                color='success'
+                                            >
+                                                Hoạt động
+                                            </Tag>
+                                        ) : (
+                                            <Tag
+                                                icon={<CloseCircleOutlined />}
+                                                color='error'
+                                            >
+                                                Đã khóa
+                                            </Tag>
+                                        )}
                                     </Descriptions.Item>
                                     <Descriptions.Item label='Địa chỉ' span={2}>
                                         {selectedUser.address}
                                     </Descriptions.Item>
                                     <Descriptions.Item label='Ngày tạo'>
-                                        {moment(selectedUser.createdAt).format(
+                                        {moment(selectedUser.created_at).format(
                                             'DD/MM/YYYY'
                                         )}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label='Đăng nhập cuối'>
-                                        {moment(selectedUser.lastLogin).format(
+                                    <Descriptions.Item label='Cập nhật cuối'>
+                                        {moment(selectedUser.updated_at).format(
                                             'DD/MM/YYYY HH:mm'
                                         )}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item
-                                        label='Thống kê'
-                                        span={2}
-                                    >
-                                        <Space size='large'>
-                                            <Statistic
-                                                title='Giao dịch'
-                                                value={
-                                                    selectedUser.totalTransactions
-                                                }
-                                            />
-                                            <Statistic
-                                                title='Đấu giá'
-                                                value={
-                                                    selectedUser.totalAuctions
-                                                }
-                                            />
-                                        </Space>
                                     </Descriptions.Item>
                                 </Descriptions>
                             )}
