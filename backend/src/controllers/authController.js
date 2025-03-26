@@ -2,7 +2,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { generateToken } = require('../middlewares/auth');
-const { generateVerificationToken, sendVerificationEmail } = require('../utils/emailService');
+const { generateVerificationToken, sendVerificationEmail } = require('../services/emailService');
+const { sendResetPasswordRequest, resetPassword } = require('../services/passwordReset');
 
 // Đăng ký user mới
 const register = async (req, res) => {
@@ -263,10 +264,52 @@ const getCurrentUser = async (req, res) => {
     }
 };
 
+// Gửi yêu cầu reset password
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        await sendResetPasswordRequest(email);
+        
+        res.json({
+            status: 'success',
+            message: 'Email reset password đã được gửi. Vui lòng kiểm tra hộp thư của bạn.'
+        });
+    } catch (error) {
+        console.error('Lỗi gửi yêu cầu reset password:', error);
+        res.status(400).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+};
+
+// Reset password
+const resetPasswordController = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        
+        await resetPassword(token, newPassword);
+        
+        res.json({
+            status: 'success',
+            message: 'Mật khẩu đã được đặt lại thành công'
+        });
+    } catch (error) {
+        console.error('Lỗi reset password:', error);
+        res.status(400).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+};
+
 module.exports = {
     register,
     login,
     getCurrentUser,
     verifyEmail,
-    resendVerificationEmail
+    resendVerificationEmail,
+    forgotPassword,
+    resetPasswordController
 }; 

@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
+const { text } = require('express');
 require('dotenv').config();
 
 // Cấu hình transporter của nodemailer
@@ -31,7 +32,7 @@ const sendVerificationEmail = async (user, verificationUrl) => {
       <p>Xin chào ${user.first_name || 'người dùng'},</p>
       <p>Cảm ơn bạn đã đăng ký tài khoản trên Auction Website. Vui lòng nhấp vào nút bên dưới để xác thực email của bạn:</p>
       <a href="${verificationUrl}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 0;">Xác thực Email</a>
-      <p>Hoặc bạn có thể nhấp vào liên kết sau: <a href="${verificationUrl}">${verificationUrl}</a></p>
+      <p>Hoặc bạn có thể nhấp vào liên kết sau: <a href="${verificationUrl}">Link</a></p>
       <p>Liên kết này sẽ hết hạn sau 24 giờ.</p>
       <p>Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email này.</p>
       <p>Trân trọng,<br>Đội ngũ Auction Website</p>
@@ -47,7 +48,28 @@ const sendVerificationEmail = async (user, verificationUrl) => {
   }
 };
 
+//Email reset password
+const sendResetPasswordEmail = async (email, resetPasswordUrl) => {
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: "Reset password",
+      html: `<p>Vui lòng nhấp vào nút bên dưới để đặt lại mật khẩu:</p>
+      <a href="${resetPasswordUrl}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 10px 0;">Reset Password</a>
+      <p>Hoặc bạn có thể nhấp vào liên kết sau: <a href="${resetPasswordUrl}">Link</a></p>`,
+    };
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log("Email sent sucessfully");
+      return true;
+    } catch (error) {
+      console.log(error, "Email not sent");
+      return false;
+}
+}
+
 module.exports = {
   generateVerificationToken,
-  sendVerificationEmail
+  sendVerificationEmail,
+  sendResetPasswordEmail
 }; 

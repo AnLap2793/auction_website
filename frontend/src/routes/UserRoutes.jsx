@@ -11,6 +11,8 @@ import MyAuctions from '../pages/user/MyAuction';
 import Auctions from '../pages/user/AuctionsPage';
 import EmailVerificationPage from '../pages/public/EmailVerificationPage';
 import ResendVerificationPage from '../pages/public/ResendVerificationPage';
+import ForgotPassword from '../components/auth/ForgotPassword';
+import ResetPassword from '../components/auth/ResetPassword';
 
 // Các routes của user
 const userRoutes = [
@@ -24,7 +26,9 @@ const userRoutes = [
     { path: '/auctions', element: <Auctions /> },
     // Thêm routes xác thực email
     { path: '/verify-email/:token', element: <EmailVerificationPage /> },
-    { path: '/resend-verification', element: <ResendVerificationPage /> }
+    { path: '/resend-verification', element: <ResendVerificationPage /> },
+    { path: '/forgot-password', element: <ForgotPassword /> },
+    { path: '/reset-password', element: <ResetPassword /> }
 ];
 
 // Protected Routes của user
