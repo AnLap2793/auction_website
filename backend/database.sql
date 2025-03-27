@@ -16,7 +16,7 @@ CREATE TABLE users (
     last_name TEXT,
     phone_number TEXT,
     address TEXT,
-    role TEXT CHECK (role IN ('admin', 'seller', 'buyer')) NOT NULL,
+    role TEXT CHECK (role IN ('seller', 'buyer')) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     is_verified BOOLEAN DEFAULT FALSE,
@@ -28,7 +28,6 @@ CREATE TABLE categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT UNIQUE NOT NULL,
     description TEXT,
-    image_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -36,28 +35,21 @@ CREATE TABLE categories (
 -- Bảng sản phẩm (ẩn danh người bán)
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    seller_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,
-    starting_price DECIMAL(10,2) NOT NULL,
-    current_price DECIMAL(10,2),
+    starting_price DECIMAL(15,2) NOT NULL
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Bảng liên kết sản phẩm với người bán
-CREATE TABLE seller_products (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    seller_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE
-);
 
 -- Bảng hình ảnh sản phẩm
 CREATE TABLE product_images (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     image_url TEXT NOT NULL,
-    order_num INT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -84,7 +76,7 @@ CREATE TABLE bids (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     auction_id UUID NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
     anonymous_id TEXT NOT NULL REFERENCES anonymous_bidders(anonymous_id) ON DELETE CASCADE,
-    amount DECIMAL(10,2) NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -101,7 +93,7 @@ CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     anonymous_winner_id TEXT NOT NULL REFERENCES auction_winners(anonymous_winner_id) ON DELETE CASCADE,
     auction_id UUID NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
-    amount DECIMAL(10,2) NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
     status TEXT CHECK (status IN ('pending', 'completed', 'failed')) NOT NULL,
     payment_method TEXT NOT NULL,
     transaction_code TEXT UNIQUE NOT NULL,

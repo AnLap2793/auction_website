@@ -19,10 +19,6 @@ const ProductImage = sequelize.define('ProductImage', {
     type: DataTypes.TEXT,
     allowNull: false
   },
-  order_num: {
-    type: DataTypes.INTEGER,
-    allowNull: false
-  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

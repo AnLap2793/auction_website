@@ -15,6 +15,14 @@ const Product = sequelize.define('Product', {
       key: 'id'
     }
   },
+  seller_id: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
   title: {
     type: DataTypes.TEXT,
     allowNull: false
@@ -24,12 +32,8 @@ const Product = sequelize.define('Product', {
     allowNull: true
   },
   starting_price: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(15, 2),
     allowNull: false
-  },
-  current_price: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: true
   },
   created_at: {
     type: DataTypes.DATE,

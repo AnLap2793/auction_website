@@ -5,7 +5,6 @@ const { DataTypes } = require('sequelize');
 const User = require('./User');
 const Category = require('./Category');
 const Product = require('./Product');
-const SellerProduct = require('./SellerProduct');
 const ProductImage = require('./ProductImage');
 const Auction = require('./Auction');
 const AnonymousBidder = require('./AnonymousBidder');
@@ -19,13 +18,9 @@ const Notification = require('./Notification');
 Category.hasMany(Product, { foreignKey: 'category_id' });
 Product.belongsTo(Category, { foreignKey: 'category_id' });
 
-// User - SellerProduct (1:n)
-User.hasMany(SellerProduct, { foreignKey: 'seller_id' });
-SellerProduct.belongsTo(User, { foreignKey: 'seller_id' });
-
-// Product - SellerProduct (1:n)
-Product.hasMany(SellerProduct, { foreignKey: 'product_id' });
-SellerProduct.belongsTo(Product, { foreignKey: 'product_id' });
+// User - Product (1:n)
+User.hasMany(Product, { foreignKey: 'seller_id' });
+Product.belongsTo(User, { foreignKey: 'seller_id' });
 
 // Product - ProductImage (1:n)
 Product.hasMany(ProductImage, { foreignKey: 'product_id' });
@@ -73,7 +68,6 @@ module.exports = {
   User,
   Category,
   Product,
-  SellerProduct,
   ProductImage,
   Auction,
   AnonymousBidder,

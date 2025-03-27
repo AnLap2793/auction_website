@@ -27,63 +27,30 @@ import {
     EditOutlined,
     DeleteOutlined,
     SaveOutlined,
-    CloseCircleOutlined,
     ShoppingOutlined,
-    UploadOutlined,
     PlusOutlined,
     FilterOutlined,
-    CheckCircleOutlined,
     DollarOutlined,
     TagOutlined,
     UserOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
+import {
+    getAllProducts,
+    updateProduct,
+    deleteProduct
+} from '../../services/productService';
+import { getAllCategories } from '../../services/categoryService';
+import { uploadImages, deleteImage } from '../../services/imageService';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
-// Giả lập dữ liệu từ API
-const mockData = [
-    {
-        id: '1',
-        tieu_de: 'iPhone 14 Pro Max',
-        mo_ta: 'Điện thoại iPhone 14 Pro Max mới 100%',
-        danh_muc: 'Điện tử',
-        gia_khoi_diem: 20000000,
-        trang_thai: 'active',
-        hinh_anh: [
-            'https://i1-giaitri.vnecdn.net/2022/12/23/tranh-dat-nhat-nam-2022-8-1671776739.jpg?w=1200&h=0&q=100&dpr=1&fit=crop&s=6Ef2NJjcIfxPkuy6_sJZOA',
-            'https://i1-giaitri.vnecdn.net/2022/12/23/tranh-dat-nhat-nam-2022-4-1671767439.jpg?w=1200&h=0&q=100&dpr=1&fit=crop&s=HBVhoZAtvu3uL-8jQGCnSA',
-            'https://i1-giaitri.vnecdn.net/2022/12/23/tranh-dat-nhat-nam-2022-1-1671761008.jpg?w=1200&h=0&q=100&dpr=1&fit=crop&s=dqHqX8wIsC5SKMVowS6cuQ'
-        ],
-        nguoi_ban: {
-            id: '1',
-            ho_ten: 'Nguyễn Văn A'
-        },
-        thoi_gian_tao: '2023-10-01T10:00:00Z',
-        thoi_gian_cap_nhat: '2023-10-05T15:00:00Z'
-    },
-    {
-        id: '2',
-        tieu_de: 'Macbook Pro M2',
-        mo_ta: 'Macbook Pro M2 2023 mới 100%',
-        danh_muc: 'Điện tử',
-        gia_khoi_diem: 35000000,
-        trang_thai: 'inactive',
-        hinh_anh: ['https://via.placeholder.com/150'],
-        nguoi_ban: {
-            id: '2',
-            ho_ten: 'Trần Thị B'
-        },
-        thoi_gian_tao: '2023-10-02T11:00:00Z',
-        thoi_gian_cap_nhat: '2023-10-06T16:00:00Z'
-    }
-];
-
 const ProductList = () => {
     const [data, setData] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -93,25 +60,55 @@ const ProductList = () => {
     const [fileList, setFileList] = useState([]);
     const [filters, setFilters] = useState({
         category: 'all',
-        status: 'all',
         priceRange: null,
         dateRange: null
     });
 
     useEffect(() => {
-        setLoading(true);
-        setTimeout(() => {
-            setData(mockData);
-            setLoading(false);
-        }, 500);
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                const [productsResponse, categoriesResponse] =
+                    await Promise.all([getAllProducts(), getAllCategories()]);
+
+                const formattedData = productsResponse.data.map((product) => ({
+                    id: product.id,
+                    tieu_de: product.title,
+                    mo_ta: product.description,
+                    danh_muc: product.Category?.name || 'Chưa phân loại',
+                    gia_khoi_diem: product.starting_price,
+                    hinh_anh:
+                        product.ProductImages?.map((img) => img.image_url) ||
+                        [],
+                    nguoi_ban: {
+                        id: product.seller_id,
+                        ho_ten: `${product.User?.first_name || ''} ${
+                            product.User?.last_name || ''
+                        }`
+                    },
+                    thoi_gian_tao:
+                        product.created_at || new Date().toISOString(),
+                    thoi_gian_cap_nhat:
+                        product.updated_at || new Date().toISOString()
+                }));
+                setData(formattedData);
+                setCategories(categoriesResponse.data);
+            } catch (error) {
+                message.error('Không thể tải dữ liệu: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
     }, []);
 
     const handleSearch = (value) => {
         setSearchText(value);
         if (value.trim() === '') {
-            setData(mockData);
+            fetchData();
         } else {
-            const filteredData = mockData.filter((item) =>
+            const filteredData = data.filter((item) =>
                 item.tieu_de.toLowerCase().includes(value.toLowerCase())
             );
             setData(filteredData);
@@ -129,6 +126,7 @@ const ProductList = () => {
             }))
         );
         setIsModalVisible(true);
+        setIsEditing(false);
     };
 
     const handleModalClose = () => {
@@ -138,35 +136,158 @@ const ProductList = () => {
         form.resetFields();
     };
 
-    const handleEdit = () => {
+    const handleEdit = (product) => {
+        setSelectedProduct(product);
+        setFileList(
+            product.hinh_anh.map((url, index) => ({
+                uid: `-${index}`,
+                name: `image-${index}`,
+                status: 'done',
+                url: url
+            }))
+        );
+        setIsModalVisible(true);
         setIsEditing(true);
-        form.setFieldsValue({
-            tieu_de: selectedProduct.tieu_de,
-            mo_ta: selectedProduct.mo_ta,
-            danh_muc: selectedProduct.danh_muc,
-            gia_khoi_diem: selectedProduct.gia_khoi_diem,
-            trang_thai: selectedProduct.trang_thai
-        });
+        form.setFieldsValue(product);
     };
 
     const handleSave = async () => {
         try {
+            setLoading(true);
+            // Xác thực form trước khi submit
             const values = await form.validateFields();
-            const formData = {
-                ...values,
-                hinh_anh: fileList.map((file) => file.url || file.response?.url)
+
+            // Chuẩn bị dữ liệu để cập nhật
+            const updatedProduct = {
+                id: selectedProduct.id,
+                title: values.tieu_de,
+                description: values.mo_ta,
+                category_name: values.danh_muc,
+                starting_price: values.gia_khoi_diem
             };
-            console.log('Cập nhật thông tin sản phẩm:', formData);
-            // Thêm logic cập nhật thông tin sản phẩm ở đây
+
+            // Xử lý hình ảnh
+            let imageUrls = [];
+            const oldImages = selectedProduct.hinh_anh;
+            const currentImages = fileList
+                .filter((file) => file.url)
+                .map((file) => file.url);
+
+            // Xác định những hình ảnh đã bị xóa
+            const deletedImages = oldImages.filter(
+                (url) => !currentImages.includes(url)
+            );
+
+            // Xóa những hình ảnh cũ
+            if (deletedImages.length > 0) {
+                //console.log('Các hình ảnh cần xóa:', deletedImages);
+                for (const imageUrl of deletedImages) {
+                    try {
+                        // Trích xuất publicId từ URL Cloudinary
+                        // URL có dạng: https://res.cloudinary.com/xxx/image/upload/v1234567890/auction_website/products/abc123def.jpg
+                        const urlParts = imageUrl.split('/');
+                        const fileNameWithExtension =
+                            urlParts[urlParts.length - 1];
+                        const fileName = fileNameWithExtension.split('.')[0];
+
+                        // Tạo publicId đúng định dạng (auction_website/products/abc123def)
+                        // const folderPath = 'auction_website/products/';
+                        // const publicId = folderPath + fileName;
+
+                        console.log('Xóa hình ảnh với fileName:', fileName);
+                        await deleteImage(fileName);
+                    } catch (deleteError) {
+                        console.warn(
+                            'Không thể xóa hình ảnh:',
+                            imageUrl,
+                            deleteError
+                        );
+                        //message.error('Không thể xóa hình ảnh');
+                        // Tiếp tục với các hình ảnh khác, không dừng quá trình cập nhật
+                    }
+                }
+            }
+
+            // Tải lên những hình ảnh mới
+            const newFiles = fileList.filter(
+                (file) => !file.url && file.originFileObj
+            );
+
+            //console.log('Số lượng file mới cần tải lên:', newFiles.length);
+
+            if (newFiles.length > 0) {
+                const formData = new FormData();
+
+                newFiles.forEach((file, index) => {
+                    formData.append('images', file.originFileObj);
+                });
+
+                try {
+                    const uploadResponse = await uploadImages(formData);
+                    if (uploadResponse && uploadResponse.data) {
+                        const newImageUrls = uploadResponse.data.map(
+                            (img) => img.url
+                        );
+                        imageUrls = [...currentImages, ...newImageUrls];
+                    } else {
+                        imageUrls = currentImages;
+                    }
+                } catch (uploadError) {
+                    //.error('Lỗi khi tải lên hình ảnh:', uploadError);
+                    message.error(
+                        'Không thể tải lên hình ảnh: ' + uploadError.message
+                    );
+                    imageUrls = currentImages;
+                }
+            } else {
+                imageUrls = currentImages;
+            }
+
+            // Thêm danh sách hình ảnh vào sản phẩm cập nhật
+            updatedProduct.ProductImages = imageUrls.map((url) => ({
+                image_url: url
+            }));
+
+            //console.log('Dữ liệu hình ảnh gửi lên:',updatedProduct.ProductImages);
+
+            // Gọi API cập nhật sản phẩm
+            await updateProduct(selectedProduct.id, updatedProduct);
+
+            message.success('Cập nhật sản phẩm thành công');
+
+            // Cập nhật lại danh sách sản phẩm
+            const updatedData = data.map((item) => {
+                if (item.id === selectedProduct.id) {
+                    return {
+                        ...item,
+                        tieu_de: values.tieu_de,
+                        mo_ta: values.mo_ta,
+                        danh_muc: values.danh_muc,
+                        gia_khoi_diem: values.gia_khoi_diem,
+                        hinh_anh: imageUrls,
+                        thoi_gian_cap_nhat: new Date().toISOString()
+                    };
+                }
+                return item;
+            });
+            setData(updatedData);
+            setIsModalVisible(false);
             setIsEditing(false);
         } catch (error) {
-            console.error('Lỗi validation:', error);
+            console.error('Lỗi chi tiết khi lưu:', error);
+            if (error.errorFields) {
+                message.error('Vui lòng điền đầy đủ thông tin sản phẩm');
+            } else {
+                message.error('Lỗi khi cập nhật sản phẩm: ' + error.message);
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
     const handleCancelEdit = () => {
         setIsEditing(false);
-        form.resetFields();
+        form.setFieldsValue(selectedProduct);
         setFileList(
             selectedProduct.hinh_anh.map((url, index) => ({
                 uid: `-${index}`,
@@ -177,13 +298,99 @@ const ProductList = () => {
         );
     };
 
-    const handleDelete = () => {
-        console.log('Xóa sản phẩm:', selectedProduct);
-        // Thêm logic xử lý xóa ở đây
+    const handleDelete = async (productId) => {
+        try {
+            setLoading(true);
+            // Lấy thông tin sản phẩm cần xóa
+            const productToDelete = data.find((item) => item.id === productId);
+
+            // Xóa ảnh trên Cloudinary
+            if (
+                productToDelete &&
+                productToDelete.hinh_anh &&
+                productToDelete.hinh_anh.length > 0
+            ) {
+                for (const imageUrl of productToDelete.hinh_anh) {
+                    try {
+                        // Trích xuất publicId từ URL Cloudinary
+                        const urlParts = imageUrl.split('/');
+                        const fileNameWithExtension =
+                            urlParts[urlParts.length - 1];
+                        const fileName = fileNameWithExtension.split('.')[0];
+
+                        console.log('Deleting image with fileName:', fileName);
+                        await deleteImage(fileName);
+                    } catch (deleteError) {
+                        console.warn(
+                            'Không thể xóa hình ảnh:',
+                            imageUrl,
+                            deleteError
+                        );
+                    }
+                }
+            }
+
+            // Xóa sản phẩm
+            await deleteProduct(productId);
+            message.success('Xóa sản phẩm thành công');
+            // Cập nhật lại danh sách sản phẩm
+            setData(data.filter((item) => item.id !== productId));
+        } catch (error) {
+            message.error('Lỗi khi xóa sản phẩm: ' + error.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleImageChange = ({ fileList: newFileList }) => {
-        setFileList(newFileList);
+    const handleImageChange = async ({ fileList: newFileList, file }) => {
+        try {
+            // Xử lý trường hợp tải lên file mới
+            if (file.originFileObj && !file.url) {
+                // Cập nhật trạng thái file
+                const updatedFile = {
+                    ...file,
+                    status: 'uploading'
+                };
+
+                // Cập nhật fileList với file đang tải lên
+                const updatedFileList = newFileList.map((f) =>
+                    f.uid === updatedFile.uid ? updatedFile : f
+                );
+                setFileList(updatedFileList);
+
+                // Hiển thị preview hình ảnh
+                try {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        updatedFile.thumbUrl = reader.result;
+                        updatedFile.status = 'done';
+
+                        // Cập nhật fileList với file đã hiển thị preview
+                        const finalFileList = updatedFileList.map((f) =>
+                            f.uid === updatedFile.uid ? updatedFile : f
+                        );
+                        setFileList(finalFileList);
+                    };
+                    reader.readAsDataURL(file.originFileObj);
+                } catch (error) {
+                    message.error('Không thể hiển thị hình ảnh');
+                }
+            }
+            // Xử lý trường hợp xóa file
+            else if (file.status === 'removed') {
+                // Cập nhật fileList bằng cách lọc bỏ file bị xóa
+                setFileList(newFileList.filter((f) => f.uid !== file.uid));
+                message.success('Đã xóa ảnh');
+            }
+            // Cập nhật fileList cho các trường hợp khác
+            else {
+                setFileList(newFileList);
+            }
+        } catch (error) {
+            message.error('Lỗi xử lý hình ảnh: ' + error.message);
+            // Nếu có lỗi, xóa file khỏi danh sách
+            setFileList(newFileList.filter((f) => f.uid !== file.uid));
+        }
     };
 
     const uploadButton = (
@@ -203,19 +410,12 @@ const ProductList = () => {
     };
 
     const filterData = () => {
-        let filteredData = [...mockData];
+        let filteredData = [...data];
 
         // Lọc theo danh mục
         if (filters.category !== 'all') {
             filteredData = filteredData.filter(
                 (item) => item.danh_muc === filters.category
-            );
-        }
-
-        // Lọc theo trạng thái
-        if (filters.status !== 'all') {
-            filteredData = filteredData.filter(
-                (item) => item.trang_thai === filters.status
             );
         }
 
@@ -257,9 +457,9 @@ const ProductList = () => {
                     />
                     <Space direction='vertical' size={0}>
                         <Text strong>{record.tieu_de}</Text>
-                        <Text type='secondary' ellipsis>
+                        {/* <Text type='secondary' ellipsis>
                             {record.mo_ta}
-                        </Text>
+                        </Text> */}
                     </Space>
                 </Space>
             )
@@ -282,7 +482,7 @@ const ProductList = () => {
             width: 150,
             render: (price) => (
                 <Text strong style={{ color: '#f50' }}>
-                    {price.toLocaleString()} VNĐ
+                    {Number(price).toLocaleString()} VNĐ
                 </Text>
             )
         },
@@ -295,26 +495,6 @@ const ProductList = () => {
                     <UserOutlined />
                     <Text>{record.nguoi_ban.ho_ten}</Text>
                 </Space>
-            )
-        },
-        {
-            title: 'Trạng thái',
-            dataIndex: 'trang_thai',
-            key: 'trang_thai',
-            width: 150,
-            render: (status) => (
-                <Tag
-                    color={status === 'active' ? 'success' : 'error'}
-                    icon={
-                        status === 'active' ? (
-                            <CheckCircleOutlined />
-                        ) : (
-                            <CloseCircleOutlined />
-                        )
-                    }
-                >
-                    {status === 'active' ? 'Đang hoạt động' : 'Ngừng hoạt động'}
-                </Tag>
             )
         },
         {
@@ -405,7 +585,7 @@ const ProductList = () => {
 
                 {/* Thống kê */}
                 <Row gutter={16}>
-                    <Col span={6}>
+                    <Col span={8}>
                         <Card>
                             <Statistic
                                 title='Tổng sản phẩm'
@@ -414,40 +594,13 @@ const ProductList = () => {
                             />
                         </Card>
                     </Col>
-                    <Col span={6}>
-                        <Card>
-                            <Statistic
-                                title='Đang hoạt động'
-                                value={
-                                    data.filter(
-                                        (p) => p.trang_thai === 'active'
-                                    ).length
-                                }
-                                valueStyle={{ color: '#3f8600' }}
-                                prefix={<CheckCircleOutlined />}
-                            />
-                        </Card>
-                    </Col>
-                    <Col span={6}>
-                        <Card>
-                            <Statistic
-                                title='Ngừng hoạt động'
-                                value={
-                                    data.filter(
-                                        (p) => p.trang_thai === 'inactive'
-                                    ).length
-                                }
-                                valueStyle={{ color: '#cf1322' }}
-                                prefix={<CloseCircleOutlined />}
-                            />
-                        </Card>
-                    </Col>
-                    <Col span={6}>
+                    <Col span={8}>
                         <Card>
                             <Statistic
                                 title='Tổng giá trị'
                                 value={data.reduce(
-                                    (sum, item) => sum + item.gia_khoi_diem,
+                                    (sum, item) =>
+                                        sum + Number(item.gia_khoi_diem),
                                     0
                                 )}
                                 valueStyle={{ color: '#1890ff' }}
@@ -470,21 +623,11 @@ const ProductList = () => {
                             }
                         >
                             <Option value='all'>Tất cả danh mục</Option>
-                            <Option value='Điện tử'>Điện tử</Option>
-                            <Option value='Thời trang'>Thời trang</Option>
-                            <Option value='Đồ gia dụng'>Đồ gia dụng</Option>
-                        </Select>
-                        <Select
-                            style={{ width: 150 }}
-                            placeholder='Trạng thái'
-                            defaultValue='all'
-                            onChange={(value) =>
-                                handleFilterChange('status', value)
-                            }
-                        >
-                            <Option value='all'>Tất cả trạng thái</Option>
-                            <Option value='active'>Đang hoạt động</Option>
-                            <Option value='inactive'>Ngừng hoạt động</Option>
+                            {categories.map((category) => (
+                                <Option key={category.id} value={category.name}>
+                                    {category.name}
+                                </Option>
+                            ))}
                         </Select>
                         <RangePicker
                             onChange={(dates) =>
@@ -528,6 +671,7 @@ const ProductList = () => {
                     }
                     open={isModalVisible}
                     onCancel={handleModalClose}
+                    confirmLoading={loading}
                     footer={
                         isEditing
                             ? [
@@ -542,19 +686,12 @@ const ProductList = () => {
                                       type='primary'
                                       icon={<SaveOutlined />}
                                       onClick={handleSave}
+                                      loading={loading}
                                   >
                                       Lưu
                                   </Button>
                               ]
                             : [
-                                  <Button
-                                      key='edit'
-                                      type='primary'
-                                      icon={<EditOutlined />}
-                                      onClick={() => setIsEditing(true)}
-                                  >
-                                      Chỉnh sửa
-                                  </Button>,
                                   <Button
                                       key='close'
                                       onClick={handleModalClose}
@@ -572,6 +709,7 @@ const ProductList = () => {
                                     form={form}
                                     layout='vertical'
                                     initialValues={selectedProduct}
+                                    disabled={loading}
                                 >
                                     <Row gutter={16}>
                                         <Col span={24}>
@@ -604,15 +742,20 @@ const ProductList = () => {
                                                 ]}
                                             >
                                                 <Select>
-                                                    <Option value='Điện tử'>
-                                                        Điện tử
-                                                    </Option>
-                                                    <Option value='Thời trang'>
-                                                        Thời trang
-                                                    </Option>
-                                                    <Option value='Đồ gia dụng'>
-                                                        Đồ gia dụng
-                                                    </Option>
+                                                    {categories.map(
+                                                        (category) => (
+                                                            <Option
+                                                                key={
+                                                                    category.id
+                                                                }
+                                                                value={
+                                                                    category.name
+                                                                }
+                                                            >
+                                                                {category.name}
+                                                            </Option>
+                                                        )
+                                                    )}
                                                 </Select>
                                             </Form.Item>
                                         </Col>
@@ -660,32 +803,15 @@ const ProductList = () => {
                                     >
                                         <TextArea rows={4} />
                                     </Form.Item>
-                                    <Form.Item
-                                        name='trang_thai'
-                                        label='Trạng thái'
-                                        rules={[
-                                            {
-                                                required: true,
-                                                message:
-                                                    'Vui lòng chọn trạng thái'
-                                            }
-                                        ]}
-                                    >
-                                        <Select>
-                                            <Option value='active'>
-                                                Đang hoạt động
-                                            </Option>
-                                            <Option value='inactive'>
-                                                Ngừng hoạt động
-                                            </Option>
-                                        </Select>
-                                    </Form.Item>
                                     <Form.Item label='Hình ảnh'>
                                         <Upload
                                             listType='picture-card'
                                             fileList={fileList}
                                             onChange={handleImageChange}
                                             beforeUpload={() => false}
+                                            maxCount={8}
+                                            multiple
+                                            accept='image/*'
                                         >
                                             {fileList.length >= 8
                                                 ? null
@@ -734,27 +860,11 @@ const ProductList = () => {
                                     </Descriptions.Item>
                                     <Descriptions.Item label='Giá khởi điểm'>
                                         <Text strong style={{ color: '#f50' }}>
-                                            {selectedProduct.gia_khoi_diem.toLocaleString()}{' '}
+                                            {Number(
+                                                selectedProduct.gia_khoi_diem
+                                            ).toLocaleString()}{' '}
                                             VNĐ
                                         </Text>
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label='Trạng thái'>
-                                        {selectedProduct.trang_thai ===
-                                        'active' ? (
-                                            <Tag
-                                                color='success'
-                                                icon={<CheckCircleOutlined />}
-                                            >
-                                                Đang hoạt động
-                                            </Tag>
-                                        ) : (
-                                            <Tag
-                                                color='error'
-                                                icon={<CloseCircleOutlined />}
-                                            >
-                                                Ngừng hoạt động
-                                            </Tag>
-                                        )}
                                     </Descriptions.Item>
                                     <Descriptions.Item label='Người bán'>
                                         <Space>

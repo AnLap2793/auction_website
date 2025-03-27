@@ -38,67 +38,17 @@ import {
     CloseCircleOutlined as CloseIcon
 } from '@ant-design/icons';
 import moment from 'moment';
-import { getUsers } from '../../services/apiUser';
+import {
+    getUsers,
+    updateUser,
+    deleteUser,
+    toggleUserStatus
+} from '../../services/apiUser';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 const { TextArea } = Input;
-
-// Dữ liệu mẫu
-// const users = [
-//     {
-//         id: '1',
-//         username: 'nguyenvana',
-//         fullName: 'Nguyễn Văn A',
-//         email: 'nguyenvana@example.com',
-//         phone: '0901234567',
-//         role: 'user',
-//         status: 'active',
-//         createdAt: '2024-01-01',
-//         lastLogin: '2024-04-10 10:30:00',
-//         avatar: 'https://xsgames.co/randomusers/avatar.php?g=male',
-//         address: 'Hà Nội',
-//         totalTransactions: 15,
-//         totalAuctions: 25,
-//         verifiedEmail: true,
-//         verifiedPhone: true
-//     },
-//     {
-//         id: '2',
-//         username: 'tranthib',
-//         fullName: 'Trần Thị B',
-//         email: 'tranthib@example.com',
-//         phone: '0909876543',
-//         role: 'admin',
-//         status: 'active',
-//         createdAt: '2024-01-15',
-//         lastLogin: '2024-04-09 15:20:00',
-//         avatar: 'https://xsgames.co/randomusers/avatar.php?g=female',
-//         address: 'Hồ Chí Minh',
-//         totalTransactions: 5,
-//         totalAuctions: 10,
-//         verifiedEmail: true,
-//         verifiedPhone: true
-//     },
-//     {
-//         id: '3',
-//         username: 'levanc',
-//         fullName: 'Lê Văn C',
-//         email: 'levanc@example.com',
-//         phone: '0905555555',
-//         role: 'user',
-//         status: 'inactive',
-//         createdAt: '2024-02-01',
-//         lastLogin: '2024-03-15 09:00:00',
-//         avatar: 'https://xsgames.co/randomusers/avatar.php?g=male',
-//         address: 'Đà Nẵng',
-//         totalTransactions: 0,
-//         totalAuctions: 5,
-//         verifiedEmail: false,
-//         verifiedPhone: true
-//     }
-// ];
 
 const UserList = () => {
     const [data, setData] = useState([]);
@@ -118,18 +68,16 @@ const UserList = () => {
         fetchData();
     }, [filters]);
 
-    //getUsers
     const fetchData = async () => {
         setLoading(true);
         try {
             const response = await getUsers();
-            setData(response.data.data);
-            let filteredData = response.data.data;
+            let filteredData = response.data || [];
 
             // Lọc theo trạng thái
             if (filters.status !== 'all') {
                 filteredData = filteredData.filter(
-                    (item) => item.status === filters.status
+                    (item) => item.is_active === (filters.status === 'active')
                 );
             }
 
@@ -144,7 +92,7 @@ const UserList = () => {
             if (filters.dateRange) {
                 const [start, end] = filters.dateRange;
                 filteredData = filteredData.filter((item) => {
-                    const createdAt = moment(item.createdAt);
+                    const createdAt = moment(item.created_at);
                     return createdAt.isBetween(start, end, 'day', '[]');
                 });
             }
@@ -154,15 +102,18 @@ const UserList = () => {
                 filteredData = filteredData.filter(
                     (item) =>
                         item.username
-                            .toLowerCase()
+                            ?.toLowerCase()
                             .includes(searchText.toLowerCase()) ||
-                        item.fullName
-                            .toLowerCase()
+                        item.first_name
+                            ?.toLowerCase()
+                            .includes(searchText.toLowerCase()) ||
+                        item.last_name
+                            ?.toLowerCase()
                             .includes(searchText.toLowerCase()) ||
                         item.email
-                            .toLowerCase()
+                            ?.toLowerCase()
                             .includes(searchText.toLowerCase()) ||
-                        item.phone.includes(searchText)
+                        item.phone_number?.includes(searchText)
                 );
             }
 
@@ -170,6 +121,7 @@ const UserList = () => {
         } catch (error) {
             console.error('Lỗi khi lấy dữ liệu:', error);
             message.error('Không thể tải dữ liệu người dùng');
+            setData([]);
         } finally {
             setLoading(false);
         }
@@ -205,8 +157,7 @@ const UserList = () => {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
-            // TODO: Gọi API cập nhật thông tin người dùng
-            // const response = await updateUser(selectedUser.id, values);
+            await updateUser(selectedUser.id, values);
             message.success('Cập nhật thông tin thành công');
             setIsEditing(false);
             setIsModalVisible(false);
@@ -214,62 +165,51 @@ const UserList = () => {
             fetchData(); // Tải lại dữ liệu sau khi cập nhật
         } catch (error) {
             console.error('Lỗi validation:', error);
-            message.error('Có lỗi xảy ra khi cập nhật thông tin');
+            message.error(
+                error.message || 'Có lỗi xảy ra khi cập nhật thông tin'
+            );
         }
     };
 
     const handleDelete = async (userId) => {
         try {
-            // TODO: Gọi API xóa người dùng
-            // await deleteUser(userId);
+            await deleteUser(userId);
             message.success('Xóa người dùng thành công');
             fetchData(); // Tải lại dữ liệu sau khi xóa
         } catch (error) {
             console.error('Lỗi khi xóa người dùng:', error);
-            message.error('Không thể xóa người dùng');
+            message.error(error.message || 'Không thể xóa người dùng');
         }
     };
 
     const handleLockUser = async (userId, currentStatus) => {
         try {
-            // TODO: Gọi API khóa/mở khóa tài khoản
-            // await toggleUserStatus(userId, !currentStatus);
-            message.success(
-                `${currentStatus ? 'Khóa' : 'Mở khóa'} tài khoản thành công`
-            );
-            fetchData(); // Tải lại dữ liệu sau khi thay đổi trạng thái
+            const response = await toggleUserStatus(userId);
+            if (response.success) {
+                // Cập nhật trạng thái ngay lập tức trong state
+                setData((prevData) =>
+                    prevData.map((user) =>
+                        user.id === userId
+                            ? { ...user, is_active: !currentStatus }
+                            : user
+                    )
+                );
+                message.success(
+                    `${currentStatus ? 'Khóa' : 'Mở khóa'} tài khoản thành công`
+                );
+            } else {
+                throw new Error(
+                    response.message ||
+                        'Không thể thay đổi trạng thái tài khoản'
+                );
+            }
         } catch (error) {
             console.error('Lỗi khi thay đổi trạng thái:', error);
-            message.error('Không thể thay đổi trạng thái tài khoản');
-        }
-    };
-
-    const getRoleTag = (role) => {
-        switch (role) {
-            case 'admin':
-                return <Tag color='red'>Admin</Tag>;
-            case 'seller':
-                return <Tag color='green'>Người bán</Tag>;
-            case 'buyer':
-                return <Tag color='blue'>Người mua</Tag>;
-            default:
-                return <Tag>Không xác định</Tag>;
-        }
-    };
-
-    const getStatusTag = (isActive) => {
-        if (isActive) {
-            return (
-                <Tag icon={<CheckCircleOutlined />} color='success'>
-                    Online
-                </Tag>
+            message.error(
+                error.message || 'Không thể thay đổi trạng thái tài khoản'
             );
-        } else {
-            return (
-                <Tag icon={<CloseCircleOutlined />} color='error'>
-                    Offline
-                </Tag>
-            );
+            // Nếu có lỗi, tải lại dữ liệu để đảm bảo hiển thị đúng
+            fetchData();
         }
     };
 
@@ -438,51 +378,38 @@ const UserList = () => {
 
                 {/* Thống kê */}
                 <Row gutter={16}>
-                    <Col span={6}>
+                    <Col span={8}>
                         <Card>
                             <Statistic
                                 title='Tổng người dùng'
-                                value={data.length}
+                                value={data?.length || 0}
                                 prefix={<UserOutlined />}
                             />
                         </Card>
                     </Col>
-                    <Col span={6}>
+                    <Col span={8}>
                         <Card>
                             <Statistic
                                 title='Đang hoạt động'
                                 value={
-                                    data.filter((u) => u.status === 'active')
-                                        .length
+                                    data?.filter((u) => u.is_active)?.length ||
+                                    0
                                 }
                                 valueStyle={{ color: '#3f8600' }}
                                 prefix={<CheckCircleOutlined />}
                             />
                         </Card>
                     </Col>
-                    <Col span={6}>
+                    <Col span={8}>
                         <Card>
                             <Statistic
                                 title='Đã khóa'
                                 value={
-                                    data.filter((u) => u.status === 'inactive')
-                                        .length
+                                    data?.filter((u) => !u.is_active)?.length ||
+                                    0
                                 }
                                 valueStyle={{ color: '#cf1322' }}
                                 prefix={<CloseCircleOutlined />}
-                            />
-                        </Card>
-                    </Col>
-                    <Col span={6}>
-                        <Card>
-                            <Statistic
-                                title='Admin'
-                                value={
-                                    data.filter((u) => u.role === 'admin')
-                                        .length
-                                }
-                                valueStyle={{ color: '#1890ff' }}
-                                prefix={<LockOutlined />}
                             />
                         </Card>
                     </Col>
@@ -512,8 +439,8 @@ const UserList = () => {
                             }
                         >
                             <Option value='all'>Tất cả vai trò</Option>
-                            <Option value='admin'>Admin</Option>
-                            <Option value='user'>User</Option>
+                            <Option value='seller'>Người bán</Option>
+                            <Option value='buyer'>Người mua</Option>
                         </Select>
                         <RangePicker
                             onChange={(dates) =>
@@ -676,9 +603,6 @@ const UserList = () => {
                                                 ]}
                                             >
                                                 <Select>
-                                                    <Option value='admin'>
-                                                        Admin
-                                                    </Option>
                                                     <Option value='seller'>
                                                         Người bán
                                                     </Option>

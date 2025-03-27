@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const { sequelize } = require('./models');
 const syncDatabase = require('./utils/dbSync');
-const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
@@ -32,11 +31,11 @@ testDbConnection();
 
 // Routes
 app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/auth', authRoutes);
-
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/products', require('./routes/productRoutes'));
+app.use('/api/images', require('./routes/imageRoutes'));
+app.use('/api/categories', require('./routes/categoryRoutes'));
 // Định nghĩa routes sẽ được thêm sau
-// app.use('/api/categories', require('./routes/categories'));
-// app.use('/api/products', require('./routes/products'));
 // app.use('/api/auctions', require('./routes/auctions'));
 
 // Error handling middleware

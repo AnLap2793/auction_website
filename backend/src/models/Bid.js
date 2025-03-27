@@ -24,7 +24,7 @@ const Bid = sequelize.define('Bid', {
     }
   },
   amount: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(15, 2),
     allowNull: false
   },
   created_at: {

@@ -68,11 +68,6 @@ const UserHeader = () => {
         },
         {
             key: '4',
-            icon: <SettingOutlined />,
-            label: <Link to='/settings'>Settings</Link>
-        },
-        {
-            key: '5',
             icon: <LogoutOutlined />,
             label: <span onClick={handleLogout}>Logout</span>
         }
