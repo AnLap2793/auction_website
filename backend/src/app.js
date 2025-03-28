@@ -35,8 +35,8 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/images', require('./routes/imageRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
-// Định nghĩa routes sẽ được thêm sau
-// app.use('/api/auctions', require('./routes/auctions'));
+app.use('/api/auctions', require('./routes/auctionRoutes'));
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {

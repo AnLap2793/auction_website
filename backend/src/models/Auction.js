@@ -30,6 +30,10 @@ const Auction = sequelize.define('Auction', {
       isIn: [['pending', 'active', 'closed', 'canceled']]
     }
   },
+  bid_increment: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: false
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
