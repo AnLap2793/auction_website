@@ -36,6 +36,7 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/images', require('./routes/imageRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/auctions', require('./routes/auctionRoutes'));
+app.use('/api/transactions', require('./routes/transactionRoutes'));
 
 
 // Error handling middleware

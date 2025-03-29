@@ -1,6 +1,6 @@
 import React from 'react';
 import DashboardPage from '../pages/admin/DashboardPage';
-import TransactionManagementPage from '../pages/admin/TransactionManagementPage';
+import TransactionManagementPage from '../pages/admin/TransactionList';
 import UserList from '../pages/admin/UserList';
 import ProductList from '../pages/admin/ProductList';
 import AuctionList from '../pages/admin/AuctionList';

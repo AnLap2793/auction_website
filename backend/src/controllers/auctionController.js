@@ -17,8 +17,12 @@ const getAllAuctions = async (req, res) => {
         // Lấy các tham số filter từ query params
         const filters = {
             status: req.query.status,
-            startAfter: req.query.startAfter,
-            endBefore: req.query.endBefore
+            sort: req.query.sort,
+            page: req.query.page,
+            limit: req.query.limit,
+            search: req.query.search,
+            category_id: req.query.category_id,
+            isAdmin: req.query.isAdmin === 'true' || false // Xác định nếu yêu cầu đến từ admin
         };
         
         const result = await auctionService.getAllAuctions(filters);

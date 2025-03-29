@@ -12,7 +12,8 @@
         "node-cron": "^3.0.3",
         "nodemailer": "^6.10.0",
         "pg": "^8.14.1",
-        "sequelize": "^6.37.6"
+        "sequelize": "^6.37.6",
+        "uuid": "^11.1.0"
     },
     "name": "backend",
     "version": "1.0.0",

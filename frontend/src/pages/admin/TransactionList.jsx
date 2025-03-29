@@ -15,7 +15,8 @@ import {
     Descriptions,
     Statistic,
     Tooltip,
-    Badge
+    Badge,
+    message
 } from 'antd';
 import {
     SearchOutlined,
@@ -29,65 +30,11 @@ import {
     ShoppingOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
+import transactionService from '../../services/transactionService';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
-
-// Dữ liệu mẫu
-const transactions = [
-    {
-        id: '1',
-        product_name: 'iPhone 14 Pro Max',
-        buyer: 'Nguyễn Văn A',
-        seller: 'Trần Thị B',
-        amount: 25000000,
-        status: 'success',
-        payment_method: 'banking',
-        created_at: '2024-04-10 10:30:00',
-        updated_at: '2024-04-10 10:35:00',
-        auction_id: 'AUC001',
-        payment_details: {
-            bank: 'Vietcombank',
-            transaction_id: 'VCB123456',
-            paid_at: '2024-04-10 10:32:00'
-        }
-    },
-    {
-        id: '2',
-        product_name: 'Macbook Pro M2',
-        buyer: 'Lê Văn C',
-        seller: 'Phạm Thị D',
-        amount: 35000000,
-        status: 'pending',
-        payment_method: 'momo',
-        created_at: '2024-04-09 15:20:00',
-        updated_at: '2024-04-09 15:20:00',
-        auction_id: 'AUC002',
-        payment_details: {
-            wallet: 'Momo',
-            transaction_id: 'MOMO789012',
-            paid_at: null
-        }
-    },
-    {
-        id: '3',
-        product_name: 'Samsung S24 Ultra',
-        buyer: 'Hoàng Văn E',
-        seller: 'Ngô Thị F',
-        amount: 28000000,
-        status: 'failed',
-        payment_method: 'banking',
-        created_at: '2024-04-08 09:15:00',
-        updated_at: '2024-04-08 09:20:00',
-        auction_id: 'AUC003',
-        payment_details: {
-            bank: 'BIDV',
-            transaction_id: 'BIDV345678',
-            paid_at: null
-        }
-    }
-];
 
 const TransactionManagementPage = () => {
     const [data, setData] = useState([]);
@@ -105,11 +52,11 @@ const TransactionManagementPage = () => {
         fetchData();
     }, [filters]);
 
-    const fetchData = () => {
-        setLoading(true);
-        // Giả lập API call
-        setTimeout(() => {
-            let filteredData = [...transactions];
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const response = await transactionService.getAllTransactions();
+            let filteredData = response;
 
             // Lọc theo trạng thái
             if (filters.status !== 'all') {
@@ -138,21 +85,21 @@ const TransactionManagementPage = () => {
             if (searchText) {
                 filteredData = filteredData.filter(
                     (item) =>
-                        item.product_name
+                        item.transaction_code
                             .toLowerCase()
                             .includes(searchText.toLowerCase()) ||
-                        item.buyer
-                            .toLowerCase()
-                            .includes(searchText.toLowerCase()) ||
-                        item.seller
+                        item.auction_id
                             .toLowerCase()
                             .includes(searchText.toLowerCase())
                 );
             }
 
             setData(filteredData);
+        } catch (error) {
+            message.error('Có lỗi xảy ra khi tải dữ liệu: ' + error.message);
+        } finally {
             setLoading(false);
-        }, 500);
+        }
     };
 
     const handleSearch = (value) => {
@@ -167,17 +114,37 @@ const TransactionManagementPage = () => {
         }));
     };
 
-    const handleViewDetails = (record) => {
-        setSelectedTransaction(record);
-        setIsModalVisible(true);
+    const handleViewDetails = async (record) => {
+        try {
+            const transactionDetail =
+                await transactionService.getTransactionById(record.id);
+            setSelectedTransaction(transactionDetail);
+            setIsModalVisible(true);
+        } catch (error) {
+            message.error(
+                'Có lỗi xảy ra khi tải chi tiết giao dịch: ' + error.message
+            );
+        }
+    };
+
+    const handleStatusUpdate = async (id, newStatus) => {
+        try {
+            await transactionService.updateTransactionStatus(id, newStatus);
+            message.success('Cập nhật trạng thái thành công');
+            fetchData();
+        } catch (error) {
+            message.error(
+                'Có lỗi xảy ra khi cập nhật trạng thái: ' + error.message
+            );
+        }
     };
 
     const getStatusTag = (status) => {
         switch (status) {
-            case 'success':
+            case 'completed':
                 return (
                     <Tag icon={<CheckCircleOutlined />} color='success'>
-                        Thành công
+                        Hoàn thành
                     </Tag>
                 );
             case 'pending':
@@ -210,40 +177,18 @@ const TransactionManagementPage = () => {
 
     const columns = [
         {
-            title: 'ID',
-            dataIndex: 'id',
-            key: 'id',
-            width: 80
+            title: 'Mã giao dịch',
+            dataIndex: 'transaction_code',
+            key: 'transaction_code',
+            width: 150
         },
         {
-            title: 'Sản phẩm',
-            dataIndex: 'product_name',
-            key: 'product_name',
-            render: (text, record) => (
+            title: 'Phiên đấu giá',
+            dataIndex: 'auction_id',
+            key: 'auction_id',
+            render: (text) => (
                 <Space>
                     <ShoppingOutlined />
-                    <span>{text}</span>
-                </Space>
-            )
-        },
-        {
-            title: 'Người mua',
-            dataIndex: 'buyer',
-            key: 'buyer',
-            render: (text) => (
-                <Space>
-                    <UserOutlined />
-                    <span>{text}</span>
-                </Space>
-            )
-        },
-        {
-            title: 'Người bán',
-            dataIndex: 'seller',
-            key: 'seller',
-            render: (text) => (
-                <Space>
-                    <UserOutlined />
                     <span>{text}</span>
                 </Space>
             )
@@ -254,7 +199,7 @@ const TransactionManagementPage = () => {
             key: 'amount',
             render: (amount) => (
                 <span style={{ fontWeight: 'bold', color: '#1890ff' }}>
-                    {amount.toLocaleString()} VND
+                    {Number(amount).toLocaleString()} VND
                 </span>
             )
         },
@@ -279,7 +224,7 @@ const TransactionManagementPage = () => {
         {
             title: 'Thao tác',
             key: 'action',
-            width: 100,
+            width: 150,
             render: (_, record) => (
                 <Space>
                     <Tooltip title='Xem chi tiết'>
@@ -289,6 +234,17 @@ const TransactionManagementPage = () => {
                             onClick={() => handleViewDetails(record)}
                         />
                     </Tooltip>
+                    <Select
+                        defaultValue={record.status}
+                        style={{ width: 120 }}
+                        onChange={(value) =>
+                            handleStatusUpdate(record.id, value)
+                        }
+                    >
+                        <Option value='pending'>Đang xử lý</Option>
+                        <Option value='completed'>Hoàn thành</Option>
+                        <Option value='failed'>Thất bại</Option>
+                    </Select>
                 </Space>
             )
         }
@@ -328,9 +284,9 @@ const TransactionManagementPage = () => {
                     <Col span={6}>
                         <Card>
                             <Statistic
-                                title='Thành công'
+                                title='Hoàn thành'
                                 value={
-                                    data.filter((t) => t.status === 'success')
+                                    data.filter((t) => t.status === 'completed')
                                         .length
                                 }
                                 valueStyle={{ color: '#3f8600' }}
@@ -378,7 +334,7 @@ const TransactionManagementPage = () => {
                             }
                         >
                             <Option value='all'>Tất cả trạng thái</Option>
-                            <Option value='success'>Thành công</Option>
+                            <Option value='completed'>Hoàn thành</Option>
                             <Option value='pending'>Đang xử lý</Option>
                             <Option value='failed'>Thất bại</Option>
                         </Select>
@@ -436,17 +392,17 @@ const TransactionManagementPage = () => {
                     {selectedTransaction && (
                         <Space direction='vertical' style={{ width: '100%' }}>
                             <Descriptions bordered column={2}>
-                                <Descriptions.Item label='ID' span={2}>
-                                    {selectedTransaction.id}
+                                <Descriptions.Item
+                                    label='Mã giao dịch'
+                                    span={2}
+                                >
+                                    {selectedTransaction.transaction_code}
                                 </Descriptions.Item>
-                                <Descriptions.Item label='Sản phẩm' span={2}>
-                                    {selectedTransaction.product_name}
-                                </Descriptions.Item>
-                                <Descriptions.Item label='Người mua'>
-                                    {selectedTransaction.buyer}
-                                </Descriptions.Item>
-                                <Descriptions.Item label='Người bán'>
-                                    {selectedTransaction.seller}
+                                <Descriptions.Item
+                                    label='Phiên đấu giá'
+                                    span={2}
+                                >
+                                    {selectedTransaction.auction_id}
                                 </Descriptions.Item>
                                 <Descriptions.Item label='Số tiền' span={2}>
                                     <span
@@ -455,7 +411,9 @@ const TransactionManagementPage = () => {
                                             color: '#1890ff'
                                         }}
                                     >
-                                        {selectedTransaction.amount.toLocaleString()}{' '}
+                                        {Number(
+                                            selectedTransaction.amount
+                                        ).toLocaleString()}{' '}
                                         VND
                                     </span>
                                 </Descriptions.Item>
@@ -467,45 +425,15 @@ const TransactionManagementPage = () => {
                                         selectedTransaction.payment_method
                                     )}
                                 </Descriptions.Item>
-                                <Descriptions.Item label='Mã đấu giá'>
-                                    {selectedTransaction.auction_id}
-                                </Descriptions.Item>
                                 <Descriptions.Item label='Thời gian tạo'>
                                     {moment(
                                         selectedTransaction.created_at
                                     ).format('DD/MM/YYYY HH:mm:ss')}
                                 </Descriptions.Item>
-                                <Descriptions.Item
-                                    label='Chi tiết thanh toán'
-                                    span={2}
-                                >
-                                    <Descriptions bordered size='small'>
-                                        <Descriptions.Item label='Đơn vị thanh toán'>
-                                            {selectedTransaction.payment_details
-                                                .bank ||
-                                                selectedTransaction
-                                                    .payment_details.wallet}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label='Mã giao dịch'>
-                                            {
-                                                selectedTransaction
-                                                    .payment_details
-                                                    .transaction_id
-                                            }
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label='Thời gian thanh toán'>
-                                            {selectedTransaction.payment_details
-                                                .paid_at
-                                                ? moment(
-                                                      selectedTransaction
-                                                          .payment_details
-                                                          .paid_at
-                                                  ).format(
-                                                      'DD/MM/YYYY HH:mm:ss'
-                                                  )
-                                                : 'Chưa thanh toán'}
-                                        </Descriptions.Item>
-                                    </Descriptions>
+                                <Descriptions.Item label='Thời gian cập nhật'>
+                                    {moment(
+                                        selectedTransaction.updated_at
+                                    ).format('DD/MM/YYYY HH:mm:ss')}
                                 </Descriptions.Item>
                             </Descriptions>
                         </Space>

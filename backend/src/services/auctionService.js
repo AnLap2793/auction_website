@@ -1,25 +1,98 @@
 const Auction = require('../models/Auction');
 const Product = require('../models/Product');
 const Bid = require('../models/Bid');
-const AnonymousBidder = require('../models/AnonymousBidder');
-const User = require('../models/User');
+const ProductImage = require('../models/ProductImage');
 const { Op, Sequelize } = require('sequelize');
 
 // Lấy tất cả các phiên đấu giá
 const getAllAuctions = async (filters = {}) => {
   try {
-    const auctions = await Auction.findAll({
+    const whereConditions = {};
+    const productWhereConditions = {};
+    
+    // Nếu là user thường thì mới lọc theo trạng thái
+    if (!filters.isAdmin) {
+      // Lọc theo trạng thái
+      if (filters.status) {
+        whereConditions.status = filters.status;
+      }
+    } else {
+      // Nếu là admin và có yêu cầu lọc theo trạng thái cụ thể
+      if (filters.status && filters.status !== 'all') {
+        whereConditions.status = filters.status;
+      }
+    }
+    
+    // Lọc theo danh mục sản phẩm
+    if (filters.category_id) {
+      productWhereConditions.category_id = filters.category_id;
+    }
+    
+    // Lọc theo từ khóa tìm kiếm
+    if (filters.search) {
+      productWhereConditions.title = {
+        [Op.like]: `%${filters.search}%`
+      };
+    }
+
+    // Xác định thứ tự sắp xếp
+    let order = [['end_time', 'desc']];
+    if(filters.sort){
+      const [field, direction] = filters.sort.split(':');
+      if (field && direction) {
+        // Xử lý trường hợp field là thuộc tính của Product
+        if (field === 'starting_price') {
+          order = [[{ model: Product }, 'starting_price', direction.toUpperCase()]];
+        } else {
+          order = [[field, direction.toUpperCase()]];
+        }
+      }
+    }
+    
+    // Thiết lập phân trang
+    const page = parseInt(filters.page) || 1;
+    const limit = parseInt(filters.limit) || 10;
+    const offset = (page - 1) * limit;
+    
+    // Đếm tổng số bản ghi
+    const countResult = await Auction.count({
+      where: whereConditions,
       include: [
         {
-          model: Product
+          model: Product,
+          where: Object.keys(productWhereConditions).length > 0 ? productWhereConditions : undefined
         }
       ],
-      order: [['start_time', 'DESC']]
+      distinct: true
     });
+    
+    // Lấy dữ liệu phân trang
+    const auctions = await Auction.findAll({
+      where: whereConditions,
+      include: [
+        {
+          model: Product,
+          where: Object.keys(productWhereConditions).length > 0 ? productWhereConditions : undefined,
+          include: { model: ProductImage, attributes: ['id', 'image_url'] }
+        }
+      ],
+      order: order,
+      limit: limit,
+      offset: offset
+    });
+    
+    // Tính toán thông tin phân trang
+    const totalPages = Math.ceil(countResult / limit);
     
     return {
       success: true,
-      data: auctions
+      data: auctions,
+      metadata: {
+        total: countResult,
+        page: page,
+        limit: limit,
+        pages: totalPages
+      }
     };
   } catch (error) {
     throw new Error(`Không thể lấy danh sách đấu giá: ${error.message}`);
@@ -100,9 +173,9 @@ const updateAuction = async (id, auctionData) => {
     }
     
     // Chỉ cho phép cập nhật các phiên đấu giá chưa bắt đầu hoặc đã hoãn
-    if (auction.status !== 'pending' && auction.status !== 'canceled') {
-      throw new Error('Chỉ có thể cập nhật phiên đấu giá chưa bắt đầu hoặc đã hoãn');
-    }
+    // if (auction.status !== 'pending' && auction.status !== 'canceled') {
+    //   throw new Error('Chỉ có thể cập nhật phiên đấu giá chưa bắt đầu hoặc đã hoãn');
+    // }
     
     // Kiểm tra thời gian hợp lệ nếu cập nhật
     if (auctionData.start_time && auctionData.end_time) {
@@ -235,7 +308,7 @@ const updateAuctionStatus = async () => {
     
     // Cập nhật các phiên đấu giá đang diễn ra thành đã kết thúc
     await Auction.update(
-      { status: 'ended' },
+      { status: 'closed' },
       {
         where: {
           status: 'active',
