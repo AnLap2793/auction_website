@@ -631,6 +631,341 @@ const AuctionList = () => {
                     }}
                 />
             </Space>
+
+            {/* Modal chi tiết phiên đấu giá */}
+            <Modal
+                title='Chi tiết phiên đấu giá'
+                open={isModalVisible}
+                onCancel={handleModalClose}
+                footer={null}
+                width={800}
+            >
+                {selectedAuction && (
+                    <>
+                        {isEditing ? (
+                            <Form form={form} layout='vertical'>
+                                <Form.Item
+                                    name='product_id'
+                                    label='Sản phẩm'
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: 'Vui lòng chọn sản phẩm'
+                                        }
+                                    ]}
+                                >
+                                    <Select placeholder='Chọn sản phẩm'>
+                                        {products.map((product) => (
+                                            <Option
+                                                key={product.id}
+                                                value={product.id}
+                                            >
+                                                {product.title}
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                                <Form.Item
+                                    name='bid_increment'
+                                    label='Bước giá'
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: 'Vui lòng nhập bước giá'
+                                        }
+                                    ]}
+                                >
+                                    <InputNumber
+                                        style={{ width: '100%' }}
+                                        formatter={(value) =>
+                                            `${value}`.replace(
+                                                /\B(?=(\d{3})+(?!\d))/g,
+                                                ','
+                                            )
+                                        }
+                                        parser={(value) =>
+                                            value.replace(/\$\s?|(,*)/g, '')
+                                        }
+                                        placeholder='Nhập bước giá'
+                                    />
+                                </Form.Item>
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            name='start_time'
+                                            label='Thời gian bắt đầu'
+                                            rules={[
+                                                {
+                                                    required: true,
+                                                    message:
+                                                        'Vui lòng chọn thời gian bắt đầu'
+                                                }
+                                            ]}
+                                        >
+                                            <DatePicker
+                                                showTime
+                                                format='DD/MM/YYYY HH:mm'
+                                                style={{ width: '100%' }}
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            name='end_time'
+                                            label='Thời gian kết thúc'
+                                            rules={[
+                                                {
+                                                    required: true,
+                                                    message:
+                                                        'Vui lòng chọn thời gian kết thúc'
+                                                }
+                                            ]}
+                                        >
+                                            <DatePicker
+                                                showTime
+                                                format='DD/MM/YYYY HH:mm'
+                                                style={{ width: '100%' }}
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+                                <Form.Item name='status' label='Trạng thái'>
+                                    <Select>
+                                        <Option value='pending'>
+                                            Sắp diễn ra
+                                        </Option>
+                                        <Option value='active'>
+                                            Đang diễn ra
+                                        </Option>
+                                        <Option value='closed'>
+                                            Đã kết thúc
+                                        </Option>
+                                        <Option value='canceled'>
+                                            Tạm hoãn
+                                        </Option>
+                                    </Select>
+                                </Form.Item>
+                                <Row justify='end'>
+                                    <Space>
+                                        <Button onClick={handleCancelEdit}>
+                                            Hủy
+                                        </Button>
+                                        <Button
+                                            type='primary'
+                                            onClick={handleSave}
+                                        >
+                                            Lưu
+                                        </Button>
+                                    </Space>
+                                </Row>
+                            </Form>
+                        ) : (
+                            <>
+                                <Descriptions
+                                    bordered
+                                    column={2}
+                                    style={{ marginBottom: '16px' }}
+                                >
+                                    <Descriptions.Item label='ID' span={2}>
+                                        {selectedAuction.id}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item
+                                        label='Sản phẩm'
+                                        span={2}
+                                    >
+                                        {selectedAuction.Product.title}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item
+                                        label='Mô tả sản phẩm'
+                                        span={2}
+                                    >
+                                        {selectedAuction.Product.description}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Thời gian bắt đầu'>
+                                        {moment(
+                                            selectedAuction.start_time
+                                        ).format('DD/MM/YYYY HH:mm')}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Thời gian kết thúc'>
+                                        {moment(
+                                            selectedAuction.end_time
+                                        ).format('DD/MM/YYYY HH:mm')}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Giá khởi điểm'>
+                                        {Number(
+                                            selectedAuction.Product
+                                                .starting_price
+                                        ).toLocaleString()}{' '}
+                                        VNĐ
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Bước giá'>
+                                        {Number(
+                                            selectedAuction.bid_increment
+                                        ).toLocaleString()}{' '}
+                                        VNĐ
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Trạng thái'>
+                                        {renderStatusTag(
+                                            selectedAuction.status
+                                        )}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label='Số lượt đăng ký'>
+                                        {registrations[selectedAuction.id] || 0}
+                                    </Descriptions.Item>
+                                </Descriptions>
+                                <Row justify='end'>
+                                    <Space>
+                                        <Button onClick={handleModalClose}>
+                                            Đóng
+                                        </Button>
+                                        {selectedAuction.status ===
+                                            'pending' && (
+                                            <>
+                                                <Button
+                                                    type='primary'
+                                                    onClick={handleEdit}
+                                                >
+                                                    <EditOutlined /> Chỉnh sửa
+                                                </Button>
+                                                <Popconfirm
+                                                    title='Hoãn phiên đấu giá'
+                                                    description='Bạn có chắc chắn muốn hoãn phiên đấu giá này?'
+                                                    onConfirm={() =>
+                                                        handleCancel(
+                                                            selectedAuction.id
+                                                        )
+                                                    }
+                                                    okText='Hoãn'
+                                                    cancelText='Bỏ'
+                                                >
+                                                    <Button danger>
+                                                        <DeleteOutlined /> Hoãn
+                                                    </Button>
+                                                </Popconfirm>
+                                            </>
+                                        )}
+                                        {selectedAuction.status ===
+                                            'closed' && (
+                                            <Popconfirm
+                                                title='Xóa phiên đấu giá'
+                                                description='Bạn có chắc chắn muốn xóa phiên đấu giá này?'
+                                                onConfirm={() =>
+                                                    handleDelete(
+                                                        selectedAuction.id
+                                                    )
+                                                }
+                                                okText='Xóa'
+                                                cancelText='Bỏ'
+                                            >
+                                                <Button danger>
+                                                    <DeleteOutlined /> Xóa
+                                                </Button>
+                                            </Popconfirm>
+                                        )}
+                                    </Space>
+                                </Row>
+                            </>
+                        )}
+                    </>
+                )}
+            </Modal>
+
+            {/* Modal tạo phiên đấu giá mới */}
+            <Modal
+                title='Tạo phiên đấu giá mới'
+                open={isCreateModalVisible}
+                onCancel={handleCreateCancel}
+                footer={null}
+                width={600}
+            >
+                <Form form={createForm} layout='vertical'>
+                    <Form.Item
+                        name='product_id'
+                        label='Sản phẩm'
+                        rules={[
+                            {
+                                required: true,
+                                message: 'Vui lòng chọn sản phẩm'
+                            }
+                        ]}
+                    >
+                        <Select placeholder='Chọn sản phẩm'>
+                            {products.map((product) => (
+                                <Option key={product.id} value={product.id}>
+                                    {product.title}
+                                </Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                    <Form.Item
+                        name='bid_increment'
+                        label='Bước giá'
+                        rules={[
+                            {
+                                required: true,
+                                message: 'Vui lòng nhập bước giá'
+                            }
+                        ]}
+                    >
+                        <InputNumber
+                            style={{ width: '100%' }}
+                            formatter={(value) =>
+                                `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                            }
+                            parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                            placeholder='Nhập bước giá'
+                        />
+                    </Form.Item>
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item
+                                name='start_time'
+                                label='Thời gian bắt đầu'
+                                rules={[
+                                    {
+                                        required: true,
+                                        message:
+                                            'Vui lòng chọn thời gian bắt đầu'
+                                    }
+                                ]}
+                            >
+                                <DatePicker
+                                    showTime
+                                    format='DD/MM/YYYY HH:mm'
+                                    style={{ width: '100%' }}
+                                />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item
+                                name='end_time'
+                                label='Thời gian kết thúc'
+                                rules={[
+                                    {
+                                        required: true,
+                                        message:
+                                            'Vui lòng chọn thời gian kết thúc'
+                                    }
+                                ]}
+                            >
+                                <DatePicker
+                                    showTime
+                                    format='DD/MM/YYYY HH:mm'
+                                    style={{ width: '100%' }}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Row justify='end'>
+                        <Space>
+                            <Button onClick={handleCreateCancel}>Hủy</Button>
+                            <Button type='primary' onClick={handleCreateSubmit}>
+                                Tạo mới
+                            </Button>
+                        </Space>
+                    </Row>
+                </Form>
+            </Modal>
         </div>
     );
 };

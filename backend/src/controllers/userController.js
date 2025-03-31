@@ -83,9 +83,24 @@ const toggleUserStatus = async (req, res) => {
   }
 };
 
+// Lấy thống kê đặt giá của người dùng
+const getUserBidStats = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const result = await userService.getUserBidStats(userId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   getUsers,
   updateUser,
   removeUser,
-  toggleUserStatus
+  toggleUserStatus,
+  getUserBidStats
 }; 

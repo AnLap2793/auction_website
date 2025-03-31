@@ -23,7 +23,8 @@ import {
     LogoutOutlined,
     LoginOutlined,
     UserAddOutlined,
-    SettingOutlined
+    SettingOutlined,
+    GifOutlined
 } from '@ant-design/icons';
 import { useMediaQuery } from 'react-responsive'; // Sử dụng react-responsive;
 import { useAuth } from '../context/AuthContext';
@@ -92,27 +93,27 @@ const UserHeader = () => {
 
     const menuItems = [
         {
-            key: '1',
+            key: 'home',
             icon: <HomeOutlined />,
             label: <Link to='/'>Home</Link>
         },
         {
-            key: '2',
+            key: 'auctions',
             icon: <AuditOutlined />,
             label: <Link to='/auctions'>Auctions</Link>
         },
+        // {
+        //     key: 'categories',
+        //     icon: <GifOutlined />,
+        //     label: <Link to='/categories'>Categories</Link>
+        // },
         {
-            key: '3',
-            icon: <GiftOutlined />,
-            label: <Link to='/categories'>Categories</Link>
-        },
-        {
-            key: '5',
+            key: 'about',
             icon: <ContainerOutlined />,
             label: <Link to='/about'>About</Link>
         },
         {
-            key: '6',
+            key: 'contact',
             icon: <ContactsOutlined />,
             label: <Link to='/contact'>Contact</Link>
         }
@@ -151,18 +152,19 @@ const UserHeader = () => {
 
                 <div>
                     {isDesktop ? (
-                        <div className='desktop-menu'>
-                            <Menu
-                                mode='horizontal'
-                                items={menuItems}
-                                style={{ border: 'none' }}
-                            />
-                        </div>
+                        <Menu
+                            mode='horizontal'
+                            items={menuItems}
+                            style={{
+                                border: 'none',
+                                minWidth: '402px'
+                            }}
+                        />
                     ) : null}
                 </div>
 
                 {/* User Tools */}
-                <div className='user-tools'>
+                <div>
                     <Space size='middle'>
                         {!isAuthenticated ? (
                             <Button

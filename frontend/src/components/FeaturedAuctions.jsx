@@ -77,10 +77,10 @@ const FeaturedAuctions = () => {
             }}
         >
             <div style={{ marginBottom: '40px', textAlign: 'center' }}>
-                <Title level={2}>Featured Auctions</Title>
+                <Title level={2}>Phiên đấu giá nổi bật</Title>
                 <Text type='secondary' style={{ fontSize: '16px' }}>
-                    Discover our most exciting auction items currently available
-                    for bidding
+                    Khám phá những mặt hàng đấu giá thú vị nhất hiện đang có sẵn
+                    để đấu giá
                 </Text>
             </div>
 
@@ -250,7 +250,7 @@ const FeaturedAuctions = () => {
 
             <div style={{ textAlign: 'center', marginTop: '40px' }}>
                 <Button type='primary' size='large'>
-                    View All Auctions
+                    Xem tất cả
                 </Button>
             </div>
         </div>

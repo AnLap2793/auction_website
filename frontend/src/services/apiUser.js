@@ -1,4 +1,5 @@
 import axios from '../utils/axiosCustomize';
+import { getToken } from '../utils/tokenManager';
 
 //Lấy danh sách user
 const getUsers = async () => {
@@ -46,11 +47,26 @@ const toggleUserStatus = async (userId) => {
     }
 };
 
+// Lấy thống kê đặt giá của người dùng
+const getUserBidStats = async (userId) => {
+    try {
+        const response = await axios.get(`/users/${userId}/bid-stats`, {
+            headers: {
+                Authorization: `Bearer ${getToken()}`
+            }
+        });
+        return response.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.message || 'Lỗi khi lấy thống kê đặt giá');
+    }
+};
+
 export {
     verifyEmail,
     resendVerificationEmail,
     getUsers,
     deleteUser,
     updateUser,
-    toggleUserStatus
+    toggleUserStatus,
+    getUserBidStats
 }

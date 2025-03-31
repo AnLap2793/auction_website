@@ -82,25 +82,6 @@ const Hero = () => {
                             >
                                 {slide.subtitle}
                             </Paragraph>
-                            {/* <Space>
-                                <Button
-                                    type='primary'
-                                    size='large'
-                                    icon={<SearchOutlined />}
-                                >
-                                    Browse Auctions
-                                </Button>
-                                <Button
-                                    size='large'
-                                    style={{
-                                        borderColor: '#fff',
-                                        color: '#fff'
-                                    }}
-                                    icon={<RightCircleOutlined />}
-                                >
-                                    How It Works
-                                </Button>
-                            </Space> */}
                         </div>
                     </div>
                 </div>
