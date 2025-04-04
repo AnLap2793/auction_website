@@ -58,10 +58,27 @@ const deleteProduct = async (req, res) => {
     }
 };
 
+// Lấy chi tiết sản phẩm theo người bán
+const getProductBySellerID = async (req, res) => {
+    try {
+        const product = await productService.getProductBySellerID(req.params.seller_id);
+        res.json({
+            success: true,
+            data: product
+        });
+    } catch (error) {
+        res.status(404).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 
 module.exports = {
     getAllProducts,
     getProductById,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    getProductBySellerID
 };

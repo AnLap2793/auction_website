@@ -30,8 +30,19 @@ const deleteProduct = async (productId) => {
     }
 }
 
+//Lấy sản phẩm theo id người bán
+const getProductBySellerID = async (seller_id) => {
+    try {
+        const response = await axios.get(`/products/${seller_id}`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+}
+
 export  {
     getAllProducts,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    getProductBySellerID
 }

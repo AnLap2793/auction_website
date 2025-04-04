@@ -1,5 +1,6 @@
-const { Product, Category, User, ProductImage } = require('../models');
+const { Product, Category, User, ProductImage, Auction } = require('../models');
 const cloudinary = require('../config/cloudinary');
+const { where } = require('sequelize');
 
 class ProductService {
     // Lấy danh sách sản phẩm
@@ -130,6 +131,28 @@ class ProductService {
             };
         } catch (error) {
             throw new Error('Lỗi khi xóa sản phẩm: ' + error.message);
+        }
+    }
+
+    // Lấy sản phẩm của người bán
+    async getProductBySellerID(seller_id){
+        try {
+            const product = await Product.findAll({
+                include: [
+                    { model: Category, attributes: ['id', 'name'] },
+                    { model: User, attributes: ['id', 'first_name', 'last_name', 'email'] },
+                    { model: ProductImage, attributes: ['id', 'image_url'] },
+                    { model: Auction }
+                ],
+                where: {seller_id: seller_id},
+                order: [['created_at', 'DESC']]
+            });
+            if (!product) {
+                throw new Error('Không tìm thấy sản phẩm');
+            }
+            return product;
+        } catch (error) {
+            throw new Error('Lỗi khi lấy sản phẩm');
         }
     }
 }

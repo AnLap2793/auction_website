@@ -53,22 +53,26 @@ const UserHeader = () => {
 
     const authenticatedMenuItems = [
         {
-            key: '1',
+            key: 'profile',
             icon: <UserOutlined />,
             label: <Link to='/profile'>My Profile</Link>
         },
+        ...(user?.role === 'seller'
+            ? [
+                  {
+                      key: 'my-auctions',
+                      icon: <AuditOutlined />,
+                      label: <Link to='/my-auctions'>My Auctions</Link>
+                  }
+              ]
+            : []),
         {
-            key: '2',
-            icon: <AuditOutlined />,
-            label: <Link to='/my-auctions'>My Auctions</Link>
-        },
-        {
-            key: '3',
+            key: 'watchlist',
             icon: <HeartOutlined />,
             label: <Link to='/watchlist'>Watchlist</Link>
         },
         {
-            key: '4',
+            key: 'logout',
             icon: <LogoutOutlined />,
             label: <span onClick={handleLogout}>Logout</span>
         }
@@ -76,12 +80,12 @@ const UserHeader = () => {
 
     const unauthenticatedMenuItems = [
         {
-            key: '1',
+            key: 'login',
             icon: <LoginOutlined />,
             label: <Link to='/login'>Sign In</Link>
         },
         {
-            key: '2',
+            key: 'register',
             icon: <UserAddOutlined />,
             label: <Link to='/register'>Register</Link>
         }

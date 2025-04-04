@@ -110,7 +110,6 @@ const MyProfile = () => {
 
                 setBidHistory(formattedBidHistory);
             } else {
-                message.error('Không thể lấy thông tin đặt giá');
                 setBidHistory([]);
                 setStatistics({
                     totalBids: 0,
