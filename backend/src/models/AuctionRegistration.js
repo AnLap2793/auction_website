@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Bid = sequelize.define('Bid', {
+const AuctionRegistration = sequelize.define('AuctionRegistration', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -23,18 +23,34 @@ const Bid = sequelize.define('Bid', {
       key: 'id'
     }
   },
-  bid_amount: {
-    type: DataTypes.DECIMAL(15, 2),
+  registration_time: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW
+  },
+  status: {
+    type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+    defaultValue: 'approved',
     allowNull: false
   },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   }
 }, {
   timestamps: false,
-  tableName: 'bids',
-  underscored: true
+  tableName: 'auction_registrations',
+  underscored: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['auction_id', 'user_id']
+    }
+  ]
 });
 
-module.exports = Bid; 
+module.exports = AuctionRegistration; 

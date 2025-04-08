@@ -15,7 +15,7 @@ const AuctionWinner = sequelize.define('AuctionWinner', {
       key: 'id'
     }
   },
-  real_winner_id: {
+  winner_id: {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
@@ -23,10 +23,19 @@ const AuctionWinner = sequelize.define('AuctionWinner', {
       key: 'id'
     }
   },
-  anonymous_winner_id: {
-    type: DataTypes.TEXT,
+  winning_bid: {
+    type: DataTypes.DECIMAL(15, 2),
+    allowNull: false
+  },
+  win_time: {
+    type: DataTypes.DATE,
     allowNull: false,
-    unique: true
+    defaultValue: DataTypes.NOW
+  },
+  payment_status: {
+    type: DataTypes.ENUM('pending', 'paid', 'cancelled'),
+    defaultValue: 'pending',
+    allowNull: false
   }
 }, {
   timestamps: false,

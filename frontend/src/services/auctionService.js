@@ -56,6 +56,36 @@ const auctionService = {
         } catch (error) {
             throw new Error(error.response?.data?.message || 'Không thể xóa phiên đấu giá');
         }
+    },
+
+    // Lấy lịch sử đấu giá
+    getAuctionBids: async (auctionId) => {
+        try {
+            const response = await axios.get(`/auctions/${auctionId}/bids`);
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Không thể lấy lịch sử đấu giá');
+        }
+    },
+
+    // Đặt giá cho phiên đấu giá
+    placeBid: async (auctionId, amount) => {
+        try {
+            const response = await axios.post(`/auctions/${auctionId}/bids`, { bid_amount: amount });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Không thể đặt giá. Vui lòng thử lại sau.');
+        }
+    },
+
+    // Đăng ký tham gia đấu giá
+    registerForAuction: async (auctionId) => {
+        try {
+            const response = await axios.post(`/auctions/${auctionId}/register`);
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Không thể đăng ký tham gia');
+        }
     }
 };
 

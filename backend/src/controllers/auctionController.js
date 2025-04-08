@@ -1,5 +1,9 @@
 const auctionService = require('../services/auctionService');
 const cron = require('node-cron');
+const authMiddleware = require('../middlewares/authMiddleware');
+
+// Middleware để kiểm tra xác thực người dùng
+const checkAuth = authMiddleware.authenticate;
 
 // Thiết lập cron job để chạy mỗi phút
 cron.schedule('* * * * *', async () => {
@@ -134,6 +138,62 @@ const deleteAuction = async (req, res) => {
   }
 };
 
+// Lấy lịch sử đấu giá của một phiên đấu giá
+const getAuctionBids = async (req, res) => {
+  try {
+    const auctionId = req.params.id;
+    const result = await auctionService.getAuctionBids(auctionId);
+    res.json(result);
+  } catch (error) {
+    res.status(404).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Đặt giá cho phiên đấu giá (cần xác thực)
+const placeBid = async (req, res) => {
+  try {
+    // Lấy thông tin user từ token (đã được xử lý bởi middleware xác thực)
+    const userId = req.user.id; 
+    const auctionId = req.params.id;
+    const bidAmount = req.body.bid_amount;
+
+    if (!bidAmount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập số tiền đặt giá'
+      });
+    }
+
+    const result = await auctionService.placeBid(auctionId, userId, bidAmount);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Đăng ký tham gia phiên đấu giá (cần xác thực)
+const registerForAuction = async (req, res) => {
+  try {
+    // Lấy thông tin user từ token (đã được xử lý bởi middleware xác thực)
+    const userId = req.user.id;
+    const auctionId = req.params.id;
+
+    const result = await auctionService.registerForAuction(auctionId, userId);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
     getAllAuctions,
     getAuctionById,
@@ -142,5 +202,9 @@ module.exports = {
     cancelAuction,
     getAuctionRegistrations,
     updateAuctionStatus,
-    deleteAuction
+    deleteAuction,
+    getAuctionBids,
+    placeBid,
+    registerForAuction,
+    checkAuth // Export middleware để sử dụng trong routes
 };
