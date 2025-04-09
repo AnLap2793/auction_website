@@ -22,63 +22,135 @@ import {
     ClockCircleOutlined,
     UserOutlined,
     DollarOutlined,
-    HeartOutlined,
-    EyeOutlined,
-    TagOutlined,
     HistoryOutlined
 } from '@ant-design/icons';
 import auctionService from '../../services/auctionService';
 import { getAllCategories } from '../../services/categoryService';
+import { useAuth } from '../../context/AuthContext';
 
 const { Title, Text, Paragraph } = Typography;
 
 const BiddingDetail = () => {
     const { id } = useParams();
+    const { user } = useAuth();
     const [auction, setAuction] = useState(null);
     const [loading, setLoading] = useState(true);
     const [bidAmount, setBidAmount] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [category, setCategory] = useState(null);
-    const [currentBids, setCurrentBids] = useState([]);
+    const [currentHighestBid, setCurrentHighestBid] = useState(0);
+    const [categories, setCategories] = useState([]);
+    const [bidHistory, setBidHistory] = useState([]);
+    const [isRegistered, setIsRegistered] = useState(false);
+    const [registrationStatus, setRegistrationStatus] = useState(null);
+    const [loadingRegistration, setLoadingRegistration] = useState(false);
 
     useEffect(() => {
-        fetchAuctionDetail();
-    }, [id]);
+        fetchAuctionDetails();
+        fetchCategories();
+        if (user) {
+            checkRegistrationStatus();
+        }
+    }, [id, user]);
 
-    const fetchAuctionDetail = async () => {
+    const fetchAuctionDetails = async () => {
         try {
             setLoading(true);
-            // Lấy thông tin phiên đấu giá
             const response = await auctionService.getAuctionById(id);
-            setAuction(response.data);
+            console.log('Dữ liệu phiên đấu giá:', response);
 
-            // Thiết lập giá đặt mặc định
-            const currentHighestBid =
-                response.data.current_bid ||
-                response.data.Product.starting_price;
-            setBidAmount(currentHighestBid + 100000); // Tăng 100k từ giá cao nhất
+            if (response.success) {
+                const auctionData = response.data;
+                setAuction(auctionData);
 
-            // Lấy thông tin danh mục
-            const categoriesResponse = await getAllCategories();
-            const categories = categoriesResponse.data;
-            const matchedCategory = categories.find(
-                (cat) => cat.id === response.data.Product.category_id
-            );
-            setCategory(matchedCategory);
+                // Khởi tạo giá đặt cược ban đầu - đảm bảo giá trị là số
+                const startingBid =
+                    Number(auctionData.Product?.starting_price) || 0;
+                const currentBid =
+                    Number(auctionData.current_bid) || startingBid;
+                const bidIncrement =
+                    Number(auctionData.bid_increment) || 500000;
+                setCurrentHighestBid(currentBid);
+                setBidAmount(currentBid + bidIncrement); // Tăng theo bid_increment
 
-            // Lấy lịch sử đấu giá
-            const bidsResponse = await auctionService.getAuctionBids(id);
-            setCurrentBids(bidsResponse.data || []);
-
-            setLoading(false);
+                // Lấy lịch sử đấu giá nếu có
+                try {
+                    const bidHistoryResponse =
+                        await auctionService.getAuctionBids(id);
+                    console.log(bidHistoryResponse);
+                    if (bidHistoryResponse && bidHistoryResponse.success) {
+                        setBidHistory(bidHistoryResponse.data || []);
+                    }
+                } catch (error) {
+                    console.error('Lỗi khi lấy lịch sử đấu giá:', error);
+                    message.warning('Không thể tải lịch sử đấu giá');
+                    setBidHistory([]);
+                }
+            }
         } catch (error) {
             message.error('Không thể tải thông tin phiên đấu giá');
             console.error('Lỗi khi tải thông tin phiên đấu giá:', error);
+        } finally {
             setLoading(false);
         }
     };
 
+    const checkRegistrationStatus = async () => {
+        if (!user || !id) return;
+
+        try {
+            setLoadingRegistration(true);
+            const response = await auctionService.getAuctionRegistrations(id);
+            console.log(response);
+
+            if (
+                response.success &&
+                response.data &&
+                response.data.registrations
+            ) {
+                // Kiểm tra xem người dùng đã đăng ký chưa
+                const userRegistration = response.data.registrations.find(
+                    (reg) => reg.user.id === user.id
+                );
+
+                if (userRegistration) {
+                    // Lưu trạng thái đăng ký
+                    setRegistrationStatus(userRegistration.status);
+                    // Coi là đã đăng ký thành công nếu status là 'approved'
+                    setIsRegistered(userRegistration.status === 'approved');
+                } else {
+                    setIsRegistered(false);
+                    setRegistrationStatus(null);
+                }
+            }
+        } catch (error) {
+            console.error('Lỗi khi kiểm tra trạng thái đăng ký:', error);
+        } finally {
+            setLoadingRegistration(false);
+        }
+    };
+
+    const fetchCategories = async () => {
+        try {
+            const categoriesData = await getAllCategories();
+            setCategories(categoriesData.data || []);
+        } catch (error) {
+            console.error('Lỗi khi tải danh mục:', error);
+        }
+    };
+
     const showBidModal = () => {
+        if (!user) {
+            message.warning('Vui lòng đăng nhập để đặt giá');
+            return;
+        }
+
+        if (!isRegistered) {
+            message.warning(
+                'Bạn cần đăng ký tham gia đấu giá trước khi đặt giá'
+            );
+            return;
+        }
+
         setIsModalOpen(true);
     };
 
@@ -87,41 +159,83 @@ const BiddingDetail = () => {
     };
 
     const handleBid = async () => {
-        const currentHighestBid =
-            auction.current_bid || auction.Product.starting_price;
+        // Đảm bảo bidAmount là số
+        const numericBidAmount = Number(bidAmount);
+        const numericCurrentHighestBid = Number(currentHighestBid);
+        const numericBidIncrement = Number(auction.bid_increment || 500000);
 
-        if (bidAmount <= currentHighestBid) {
-            message.error('Giá đặt của bạn phải cao hơn giá hiện tại');
+        // Kiểm tra giá đặt có cao hơn giá hiện tại
+        if (numericBidAmount <= numericCurrentHighestBid) {
+            message.error('Giá đặt phải cao hơn giá hiện tại');
+            return;
+        }
+
+        // Kiểm tra giá đặt có phù hợp với bid_increment
+        if (numericBidAmount < numericCurrentHighestBid + numericBidIncrement) {
+            message.error(
+                `Giá đặt phải cao hơn giá hiện tại ít nhất ${numericBidIncrement.toLocaleString()} VNĐ`
+            );
             return;
         }
 
         try {
-            await auctionService.placeBid(auction.id, bidAmount);
-            message.success(
-                `Đã đặt giá thành công: ${bidAmount.toLocaleString()} ₫`
-            );
-            fetchAuctionDetail(); // Cập nhật lại thông tin đấu giá
-            setIsModalOpen(false);
+            const response = await auctionService.placeBid(id, {
+                bid_amount: numericBidAmount
+            });
+
+            if (response.success) {
+                message.success(
+                    `Đã đặt giá thành công: ${numericBidAmount.toLocaleString()} VNĐ`
+                );
+                setIsModalOpen(false);
+
+                // Cập nhật lại thông tin phiên đấu giá
+                fetchAuctionDetails();
+            } else {
+                message.error(response.message || 'Đặt giá thất bại');
+            }
         } catch (error) {
-            message.error(
-                error.response?.data?.message ||
-                    'Không thể đặt giá. Vui lòng thử lại sau.'
-            );
+            message.error(error.response?.data?.message || 'Đặt giá thất bại');
             console.error('Lỗi khi đặt giá:', error);
         }
     };
 
-    // Format time remaining for countdown
-    const getTimeRemaining = (endDate) => {
-        const endTime = new Date(endDate).getTime();
-        return endTime;
+    const handleRegister = async () => {
+        if (!user) {
+            message.warning('Vui lòng đăng nhập để đăng ký tham gia đấu giá');
+            return;
+        }
+
+        try {
+            const response = await auctionService.registerForAuction(id);
+
+            if (response.success) {
+                message.success('Đăng ký tham gia đấu giá thành công');
+                setIsRegistered(true);
+            } else {
+                message.error(response.message || 'Đăng ký thất bại');
+            }
+        } catch (error) {
+            message.error(error.message || 'Đăng ký thất bại');
+            console.error('Lỗi khi đăng ký tham gia:', error);
+        }
     };
 
     if (loading) {
         return (
-            <div style={{ textAlign: 'center', padding: '100px 0' }}>
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '50vh',
+                    flexDirection: 'column'
+                }}
+            >
                 <Spin size='large' />
-                <p>Đang tải thông tin phiên đấu giá...</p>
+                <div style={{ marginTop: '15px' }}>
+                    Đang tải thông tin phiên đấu giá...
+                </div>
             </div>
         );
     }
@@ -140,8 +254,21 @@ const BiddingDetail = () => {
         );
     }
 
-    const minimumBid =
-        (auction.current_bid || auction.Product.starting_price) + 100000; // Tăng ít nhất 100k
+    // Lấy thông tin danh mục
+    const getCategoryName = (categoryId) => {
+        const category = categories.find((cat) => cat.id === categoryId);
+        return category ? category.name : 'Chưa phân loại';
+    };
+
+    // Tính thời gian còn lại
+    const getTimeRemaining = () => {
+        const endTime = new Date(auction.end_time).getTime();
+        return endTime;
+    };
+
+    // Tính toán giá đặt tối thiểu
+    const bidIncrement = Number(auction.bid_increment) || 500000;
+    const minimumBid = Number(currentHighestBid) + bidIncrement;
 
     return (
         <div>
@@ -158,21 +285,23 @@ const BiddingDetail = () => {
                         <Card>
                             <Image
                                 src={
-                                    auction.Product.ProductImages[0]?.image_url
+                                    auction.Product?.ProductImages[0]
+                                        ?.image_url ||
+                                    'https://placeholder.com/400'
                                 }
-                                alt={auction.Product.title}
+                                alt={auction.Product?.title}
                                 style={{ width: '100%', height: 'auto' }}
                             />
                             <div style={{ marginTop: '20px' }}>
                                 <Row gutter={[8, 8]}>
-                                    {auction.Product.ProductImages.map(
+                                    {auction.Product?.ProductImages?.map(
                                         (img, index) => (
                                             <Col span={8} key={index}>
                                                 <Image
                                                     src={img.image_url}
                                                     alt={`${
-                                                        auction.Product.title
-                                                    } view ${index + 1}`}
+                                                        auction.Product?.title
+                                                    } ảnh ${index + 1}`}
                                                     style={{
                                                         width: '100%',
                                                         height: 'auto',
@@ -191,40 +320,36 @@ const BiddingDetail = () => {
                     <Col xs={24} md={12}>
                         <Card>
                             <Tag color='blue'>
-                                {category?.name || 'Không phân loại'}
+                                {getCategoryName(auction.Product?.category_id)}
                             </Tag>
-                            <Title level={2}>{auction.Product.title}</Title>
+                            <Title level={2}>{auction.Product?.title}</Title>
 
                             {/* Item stats */}
                             <Row gutter={16} style={{ marginBottom: '20px' }}>
-                                <Col span={8}>
+                                <Col span={12}>
                                     <Statistic
                                         title='Giá hiện tại'
-                                        value={
-                                            auction.current_bid ||
-                                            auction.Product.starting_price
-                                        }
+                                        value={currentHighestBid}
                                         precision={0}
                                         valueStyle={{ color: '#1890ff' }}
                                         prefix={<DollarOutlined />}
-                                        suffix='₫'
+                                        suffix='VNĐ'
                                         formatter={(value) =>
                                             `${Number(value).toLocaleString()}`
                                         }
                                     />
                                 </Col>
-                                <Col span={8}>
+                                <Col span={12}>
                                     <Statistic
-                                        title='Lượt đấu giá'
-                                        value={currentBids.length}
-                                        prefix={<UserOutlined />}
-                                    />
-                                </Col>
-                                <Col span={8}>
-                                    <Statistic
-                                        title='Lượt xem'
-                                        value={auction.views || 0}
-                                        prefix={<EyeOutlined />}
+                                        title='Giá khởi điểm'
+                                        value={
+                                            auction.Product?.starting_price || 0
+                                        }
+                                        precision={0}
+                                        formatter={(value) =>
+                                            `${Number(value).toLocaleString()}`
+                                        }
+                                        suffix='VNĐ'
                                     />
                                 </Col>
                             </Row>
@@ -255,9 +380,7 @@ const BiddingDetail = () => {
                                     </div>
                                     <div>
                                         <Statistic.Countdown
-                                            value={getTimeRemaining(
-                                                auction.end_time
-                                            )}
+                                            value={getTimeRemaining()}
                                             format='D [ngày] H [giờ] m [phút] s [giây]'
                                             valueStyle={{
                                                 fontSize: '16px',
@@ -269,52 +392,193 @@ const BiddingDetail = () => {
                             </Card>
 
                             {/* Bidding actions */}
-                            <Space
-                                direction='vertical'
-                                size='large'
-                                style={{ width: '100%' }}
-                            >
-                                <Space direction='horizontal'>
-                                    <Text>Nhập giá đấu tối đa của bạn:</Text>
-                                    <Text type='secondary'>
-                                        Giá tối thiểu:{' '}
-                                        {minimumBid.toLocaleString()} ₫
-                                    </Text>
-                                </Space>
-                                <Space.Compact>
-                                    <Input
-                                        style={{ width: 'calc(100% - 100px)' }}
-                                        type='number'
-                                        placeholder={minimumBid.toString()}
-                                        value={bidAmount}
-                                        onChange={(e) =>
-                                            setBidAmount(
-                                                parseInt(e.target.value)
-                                            )
-                                        }
-                                        min={minimumBid}
-                                    />
-                                    <Button
-                                        type='primary'
-                                        style={{ width: '100px' }}
-                                        onClick={showBidModal}
-                                        disabled={auction.status !== 'active'}
-                                    >
-                                        Đặt giá
-                                    </Button>
-                                </Space.Compact>
+                            {auction.status === 'active' && (
                                 <Space
+                                    direction='vertical'
+                                    size='large'
+                                    style={{ width: '100%' }}
+                                >
+                                    {isRegistered ? (
+                                        <>
+                                            <Space direction='horizontal'>
+                                                <Text>
+                                                    Nhập giá đặt tối đa của bạn:
+                                                </Text>
+                                                <Text type='secondary'>
+                                                    Giá đặt tối thiểu:{' '}
+                                                    {Number(
+                                                        minimumBid
+                                                    ).toLocaleString()}{' '}
+                                                    VNĐ
+                                                </Text>
+                                            </Space>
+                                            <Space.Compact>
+                                                <Input
+                                                    style={{
+                                                        width: 'calc(100% - 120px)'
+                                                    }}
+                                                    type='number'
+                                                    value={bidAmount}
+                                                    placeholder={Number(
+                                                        minimumBid
+                                                    ).toString()}
+                                                    onChange={(e) =>
+                                                        setBidAmount(
+                                                            Number(
+                                                                e.target.value
+                                                            )
+                                                        )
+                                                    }
+                                                    min={minimumBid}
+                                                    step={bidIncrement}
+                                                    suffix='VNĐ'
+                                                />
+                                                <Button
+                                                    type='primary'
+                                                    style={{ width: '120px' }}
+                                                    onClick={showBidModal}
+                                                >
+                                                    Đặt giá
+                                                </Button>
+                                            </Space.Compact>
+                                        </>
+                                    ) : registrationStatus ? (
+                                        <div style={{ textAlign: 'center' }}>
+                                            <Tag
+                                                color='orange'
+                                                style={{
+                                                    marginBottom: '10px',
+                                                    padding: '5px 10px'
+                                                }}
+                                            >
+                                                Đăng ký của bạn đang{' '}
+                                                {registrationStatus ===
+                                                'pending'
+                                                    ? 'chờ duyệt'
+                                                    : 'bị từ chối'}
+                                            </Tag>
+                                            <Text style={{ display: 'block' }}>
+                                                {registrationStatus ===
+                                                'pending'
+                                                    ? 'Vui lòng đợi quản trị viên phê duyệt đăng ký của bạn.'
+                                                    : 'Đăng ký tham gia của bạn đã bị từ chối. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.'}
+                                            </Text>
+                                        </div>
+                                    ) : (
+                                        <div style={{ textAlign: 'center' }}>
+                                            <Text
+                                                style={{
+                                                    display: 'block',
+                                                    marginBottom: '10px'
+                                                }}
+                                            >
+                                                Bạn chưa đăng ký tham gia phiên
+                                                đấu giá này
+                                            </Text>
+                                            <Button
+                                                type='primary'
+                                                onClick={handleRegister}
+                                                disabled={loadingRegistration}
+                                                loading={loadingRegistration}
+                                            >
+                                                Đăng ký tham gia ngay
+                                            </Button>
+                                        </div>
+                                    )}
+                                </Space>
+                            )}
+
+                            {auction.status === 'pending' && (
+                                <div
                                     style={{
-                                        width: '100%',
-                                        justifyContent: 'space-between'
+                                        marginTop: '20px',
+                                        textAlign: 'center'
                                     }}
                                 >
-                                    <Button icon={<HeartOutlined />}>
-                                        Thêm vào danh sách yêu thích
-                                    </Button>
-                                    <Button type='link'>Đặt câu hỏi</Button>
-                                </Space>
-                            </Space>
+                                    {isRegistered ? (
+                                        <>
+                                            <Tag
+                                                color='green'
+                                                style={{
+                                                    padding: '5px 10px',
+                                                    marginBottom: '10px'
+                                                }}
+                                            >
+                                                Bạn đã đăng ký tham gia đấu giá
+                                                này
+                                            </Tag>
+                                            <Text
+                                                style={{
+                                                    display: 'block'
+                                                }}
+                                            >
+                                                Phiên đấu giá chưa bắt đầu. Hãy
+                                                quay lại sau.
+                                            </Text>
+                                        </>
+                                    ) : registrationStatus ? (
+                                        <>
+                                            <Tag
+                                                color='orange'
+                                                style={{
+                                                    padding: '5px 10px',
+                                                    marginBottom: '10px'
+                                                }}
+                                            >
+                                                Đăng ký của bạn đang{' '}
+                                                {registrationStatus ===
+                                                'pending'
+                                                    ? 'chờ duyệt'
+                                                    : 'bị từ chối'}
+                                            </Tag>
+                                            <Text style={{ display: 'block' }}>
+                                                {registrationStatus ===
+                                                'pending'
+                                                    ? 'Vui lòng đợi quản trị viên phê duyệt đăng ký của bạn.'
+                                                    : 'Đăng ký của bạn đã bị từ chối. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.'}
+                                            </Text>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Button
+                                                type='primary'
+                                                onClick={handleRegister}
+                                                disabled={loadingRegistration}
+                                                loading={loadingRegistration}
+                                            >
+                                                Đăng ký tham gia đấu giá
+                                            </Button>
+                                            <Text
+                                                style={{
+                                                    display: 'block',
+                                                    marginTop: '10px'
+                                                }}
+                                            >
+                                                Phiên đấu giá chưa bắt đầu
+                                            </Text>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
+                            {auction.status === 'ended' && (
+                                <div
+                                    style={{
+                                        marginTop: '20px',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    <Tag
+                                        color='red'
+                                        style={{
+                                            padding: '5px 10px',
+                                            fontSize: '16px'
+                                        }}
+                                    >
+                                        Phiên đấu giá đã kết thúc
+                                    </Tag>
+                                </div>
+                            )}
 
                             <Divider />
 
@@ -324,23 +588,14 @@ const BiddingDetail = () => {
                                 <Space align='center'>
                                     <UserOutlined />
                                     <Text strong>
-                                        {auction.Seller?.username ||
+                                        {auction.seller?.username ||
                                             'Người bán ẩn danh'}
                                     </Text>
-                                    {auction.Seller?.rating && (
-                                        <Tag color='green'>
-                                            {auction.Seller.rating} ★
-                                        </Tag>
-                                    )}
                                 </Space>
                             </div>
 
                             {/* Shipping info */}
                             <Descriptions bordered size='small' column={1}>
-                                <Descriptions.Item label='Địa điểm'>
-                                    {auction.Product.location ||
-                                        'Không có thông tin'}
-                                </Descriptions.Item>
                                 <Descriptions.Item label='Thời gian bắt đầu'>
                                     {new Date(
                                         auction.start_time
@@ -351,9 +606,14 @@ const BiddingDetail = () => {
                                         'vi-VN'
                                     )}
                                 </Descriptions.Item>
-                                <Descriptions.Item label='Tình trạng'>
-                                    {auction.Product.condition ||
-                                        'Không có thông tin'}
+                                <Descriptions.Item label='Trạng thái'>
+                                    {auction.status === 'active' ? (
+                                        <Tag color='green'>Đang diễn ra</Tag>
+                                    ) : auction.status === 'pending' ? (
+                                        <Tag color='blue'>Sắp diễn ra</Tag>
+                                    ) : (
+                                        <Tag color='red'>Đã kết thúc</Tag>
+                                    )}
                                 </Descriptions.Item>
                             </Descriptions>
                         </Card>
@@ -365,7 +625,8 @@ const BiddingDetail = () => {
                     <Col span={24}>
                         <Card title='Mô tả sản phẩm'>
                             <Paragraph style={{ fontSize: '16px' }}>
-                                {auction.Product.description}
+                                {auction.Product?.description ||
+                                    'Không có mô tả'}
                             </Paragraph>
                         </Card>
                     </Col>
@@ -379,13 +640,13 @@ const BiddingDetail = () => {
                                 <Space>
                                     <HistoryOutlined />
                                     <span>
-                                        Lịch sử đấu giá ({currentBids.length}{' '}
-                                        lượt)
+                                        Lịch sử đấu giá (
+                                        {bidHistory.length || 0} lượt)
                                     </span>
                                 </Space>
                             }
                         >
-                            {currentBids.length > 0 ? (
+                            {bidHistory.length > 0 ? (
                                 <table
                                     style={{
                                         width: '100%',
@@ -405,7 +666,7 @@ const BiddingDetail = () => {
                                                     textAlign: 'left'
                                                 }}
                                             >
-                                                Người đấu giá
+                                                Người đặt giá
                                             </th>
                                             <th
                                                 style={{
@@ -426,7 +687,7 @@ const BiddingDetail = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {currentBids.map((bid, index) => (
+                                        {bidHistory.map((bid, index) => (
                                             <tr
                                                 key={index}
                                                 style={{
@@ -443,8 +704,10 @@ const BiddingDetail = () => {
                                                         <UserOutlined />
                                                         <Text>
                                                             {bid.User
-                                                                ?.username ||
-                                                                'Ẩn danh'}
+                                                                .first_name +
+                                                                ' ' +
+                                                                bid.User
+                                                                    .last_name}
                                                         </Text>
                                                         {index === 0 && (
                                                             <Tag color='green'>
@@ -462,8 +725,8 @@ const BiddingDetail = () => {
                                                     <Text strong>
                                                         {Number(
                                                             bid.bid_amount
-                                                        ).toLocaleString()}{' '}
-                                                        ₫
+                                                        )?.toLocaleString()}{' '}
+                                                        VNĐ
                                                     </Text>
                                                 </td>
                                                 <td
@@ -508,7 +771,7 @@ const BiddingDetail = () => {
                 onCancel={handleCancel}
                 footer={[
                     <Button key='back' onClick={handleCancel}>
-                        Hủy bỏ
+                        Hủy
                     </Button>,
                     <Button key='submit' type='primary' onClick={handleBid}>
                         Xác nhận đặt giá
@@ -516,19 +779,20 @@ const BiddingDetail = () => {
                 ]}
             >
                 <p>
-                    Bạn đang đặt giá{' '}
-                    <strong>{bidAmount.toLocaleString()} ₫</strong> cho:
+                    Bạn sắp đặt giá{' '}
+                    <strong>{Number(bidAmount)?.toLocaleString()} VNĐ</strong>{' '}
+                    cho:
                 </p>
                 <p>
-                    <strong>{auction.Product.title}</strong>
+                    <strong>{auction.Product?.title}</strong>
                 </p>
                 <Divider />
                 <p>
-                    Bằng việc xác nhận, bạn đồng ý với các điều khoản và điều
+                    Bằng cách xác nhận, bạn đồng ý với các điều khoản và điều
                     kiện của phiên đấu giá này.
                 </p>
                 <p>
-                    Lưu ý: Giá đặt này có giá trị ràng buộc và không thể rút lại
+                    Lưu ý: Giá đặt có hiệu lực ràng buộc và không thể rút lại
                     sau khi đã đặt.
                 </p>
             </Modal>

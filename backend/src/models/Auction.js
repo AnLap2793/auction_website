@@ -36,19 +36,8 @@ const Auction = sequelize.define('Auction', {
   },
   current_bid: {
     type: DataTypes.DECIMAL(15, 2),
-    allowNull: true
-  },
-  current_winner_id: {
-    type: DataTypes.UUID,
     allowNull: true,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
-  },
-  views: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
+    defaultValue: null
   },
   created_at: {
     type: DataTypes.DATE,

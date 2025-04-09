@@ -7,14 +7,6 @@ const Transaction = sequelize.define('Transaction', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
-  anonymous_winner_id: {
-    type: DataTypes.TEXT,
-    allowNull: false,
-    references: {
-      model: 'auction_winners',
-      key: 'anonymous_winner_id'
-    }
-  },
   auction_id: {
     type: DataTypes.UUID,
     allowNull: false,

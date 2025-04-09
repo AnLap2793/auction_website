@@ -1,9 +1,6 @@
 const auctionService = require('../services/auctionService');
 const cron = require('node-cron');
-const authMiddleware = require('../middlewares/authMiddleware');
-
-// Middleware để kiểm tra xác thực người dùng
-const checkAuth = authMiddleware.authenticate;
+const { AuctionRegistration } = require('../models');
 
 // Thiết lập cron job để chạy mỗi phút
 cron.schedule('* * * * *', async () => {
@@ -141,8 +138,7 @@ const deleteAuction = async (req, res) => {
 // Lấy lịch sử đấu giá của một phiên đấu giá
 const getAuctionBids = async (req, res) => {
   try {
-    const auctionId = req.params.id;
-    const result = await auctionService.getAuctionBids(auctionId);
+    const result = await auctionService.getAuctionBids(req.params.id);
     res.json(result);
   } catch (error) {
     res.status(404).json({
@@ -152,22 +148,24 @@ const getAuctionBids = async (req, res) => {
   }
 };
 
-// Đặt giá cho phiên đấu giá (cần xác thực)
+// Đặt giá cho một phiên đấu giá
 const placeBid = async (req, res) => {
   try {
-    // Lấy thông tin user từ token (đã được xử lý bởi middleware xác thực)
-    const userId = req.user.id; 
-    const auctionId = req.params.id;
-    const bidAmount = req.body.bid_amount;
-
-    if (!bidAmount) {
-      return res.status(400).json({
+    // Xác thực người dùng đã đăng nhập
+    if (!req.user) {
+      return res.status(401).json({
         success: false,
-        message: 'Vui lòng nhập số tiền đặt giá'
+        message: 'Bạn cần đăng nhập để đặt giá'
       });
     }
-
-    const result = await auctionService.placeBid(auctionId, userId, bidAmount);
+    
+    const bidData = {
+      auction_id: req.params.id,
+      user_id: req.user.id,
+      bid_amount: req.body.bid_amount
+    };
+    
+    const result = await auctionService.placeBid(bidData);
     res.status(201).json(result);
   } catch (error) {
     res.status(400).json({
@@ -177,21 +175,22 @@ const placeBid = async (req, res) => {
   }
 };
 
-// Đăng ký tham gia phiên đấu giá (cần xác thực)
+// Đăng ký tham gia phiên đấu giá
 const registerForAuction = async (req, res) => {
-  try {
-    // Lấy thông tin user từ token (đã được xử lý bởi middleware xác thực)
-    const userId = req.user.id;
-    const auctionId = req.params.id;
+    try {
+        const auctionId = req.params.id;
+        const userId = req.user.id;
 
-    const result = await auctionService.registerForAuction(auctionId, userId);
-    res.status(201).json(result);
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
+        const result = await auctionService.registerForAuction(auctionId, userId);
+        
+        res.status(201).json(result);
+    } catch (error) {
+        console.error('Lỗi khi đăng ký tham gia đấu giá:', error);
+        res.status(400).json({
+            success: false,
+            message: error.message || 'Đã xảy ra lỗi khi đăng ký tham gia đấu giá'
+        });
+    }
 };
 
 module.exports = {
@@ -205,6 +204,5 @@ module.exports = {
     deleteAuction,
     getAuctionBids,
     placeBid,
-    registerForAuction,
-    checkAuth // Export middleware để sử dụng trong routes
+    registerForAuction
 };

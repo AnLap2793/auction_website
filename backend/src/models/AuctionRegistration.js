@@ -23,34 +23,20 @@ const AuctionRegistration = sequelize.define('AuctionRegistration', {
       key: 'id'
     }
   },
-  registration_time: {
+  registration_date: {
     type: DataTypes.DATE,
     allowNull: false,
     defaultValue: DataTypes.NOW
   },
   status: {
     type: DataTypes.ENUM('pending', 'approved', 'rejected'),
-    defaultValue: 'approved',
-    allowNull: false
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  },
-  updated_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
+    allowNull: false,
+    defaultValue: 'pending'
   }
 }, {
   timestamps: false,
   tableName: 'auction_registrations',
-  underscored: true,
-  indexes: [
-    {
-      unique: true,
-      fields: ['auction_id', 'user_id']
-    }
-  ]
+  underscored: true
 });
 
 module.exports = AuctionRegistration; 

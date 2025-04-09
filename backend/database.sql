@@ -65,13 +65,6 @@ CREATE TABLE auctions (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Bảng ẩn danh người đặt giá
-CREATE TABLE anonymous_bidders (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    real_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    anonymous_id TEXT UNIQUE NOT NULL
-);
-
 -- Bảng đặt giá (ẩn danh)
 CREATE TABLE bids (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -67,11 +67,6 @@ const UserHeader = () => {
               ]
             : []),
         {
-            key: 'watchlist',
-            icon: <HeartOutlined />,
-            label: <Link to='/watchlist'>Watchlist</Link>
-        },
-        {
             key: 'logout',
             icon: <LogoutOutlined />,
             label: <span onClick={handleLogout}>Logout</span>

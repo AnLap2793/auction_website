@@ -14,7 +14,10 @@ import {
     Statistic,
     Button,
     message,
-    Empty
+    Empty,
+    Modal,
+    Form,
+    Checkbox
 } from 'antd';
 import {
     SearchOutlined,
@@ -22,11 +25,13 @@ import {
     HeartOutlined,
     ClockCircleOutlined,
     TagOutlined,
-    FireOutlined
+    FireOutlined,
+    UserAddOutlined
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import auctionService from '../../services/auctionService';
 import { getAllCategories } from '../../services/categoryService';
+import { useAuth } from '../../context/AuthContext';
 
 const { Title, Text, Paragraph } = Typography;
 const { Meta } = Card;
@@ -34,6 +39,7 @@ const { Countdown } = Statistic;
 const { Option } = Select;
 
 const Auctions = () => {
+    const { user } = useAuth();
     const [filter, setFilter] = useState('all');
     const [sortBy, setSortBy] = useState('ending-soon');
     const [currentPage, setCurrentPage] = useState(1);
@@ -44,6 +50,10 @@ const Auctions = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
     const [registrations, setRegistrations] = useState({});
+    const [isRegistrationModalVisible, setIsRegistrationModalVisible] =
+        useState(false);
+    const [selectedAuction, setSelectedAuction] = useState(null);
+    const [form] = Form.useForm();
 
     useEffect(() => {
         fetchCategories();
@@ -70,7 +80,7 @@ const Auctions = () => {
                 limit: pageSize,
                 search: searchTerm,
                 sort: getSortParams(sortBy),
-                status: 'active',
+                status: ['active', 'pending'],
                 isAdmin: false // Xác định đây là truy vấn từ phía người dùng
             };
 
@@ -81,7 +91,7 @@ const Auctions = () => {
 
             //console.log('Gửi filters tới API:', baseFilters);
             const response = await auctionService.getAllAuctions(baseFilters);
-            //console.log('Dữ liệu nhận về từ API:', response);
+            console.log('Dữ liệu nhận về từ API:', response);
 
             // Dữ liệu trả về từ API
             let auctionData = response.data || [];
@@ -170,6 +180,31 @@ const Auctions = () => {
     const getTimeRemaining = (endDate) => {
         const endTime = new Date(endDate).getTime();
         return endTime;
+    };
+
+    const handleRegister = async (auction) => {
+        if (!user) {
+            message.error('Vui lòng đăng nhập để đăng ký tham gia đấu giá');
+            return;
+        }
+        setSelectedAuction(auction);
+        setIsRegistrationModalVisible(true);
+    };
+
+    const handleRegistrationSubmit = async () => {
+        try {
+            const values = await form.validateFields();
+            const response = await auctionService.registerForAuction(
+                selectedAuction.id
+            );
+            if (response.success) {
+                message.success('Đăng ký tham gia đấu giá thành công');
+                setIsRegistrationModalVisible(false);
+                fetchAuctions(); // Refresh danh sách đấu giá
+            }
+        } catch (error) {
+            message.error(error.message || 'Đăng ký thất bại');
+        }
     };
 
     return (
@@ -367,73 +402,46 @@ const Auctions = () => {
                                             </div>
                                         }
                                         actions={[
-                                            <Link to={`/auction/${auction.id}`}>
+                                            auction.status === 'pending' ? (
                                                 <Button
-                                                    type={
-                                                        auction.status ===
-                                                        'pending'
-                                                            ? 'primary'
-                                                            : auction.status ===
-                                                              'active'
-                                                            ? 'primary'
-                                                            : 'default'
+                                                    type='primary'
+                                                    icon={<UserAddOutlined />}
+                                                    onClick={() =>
+                                                        handleRegister(auction)
                                                     }
-                                                    block
-                                                    style={{
-                                                        margin: '0 auto',
-                                                        maxWidth: '100px',
-                                                        backgroundColor:
-                                                            auction.status ===
-                                                            'pending'
-                                                                ? '#1890ff'
-                                                                : auction.status ===
-                                                                  'active'
-                                                                ? '#52c41a'
-                                                                : auction.status ===
-                                                                  'closed'
-                                                                ? '#d9d9d9'
-                                                                : auction.status ===
-                                                                  'canceled'
-                                                                ? '#ff4d4f'
-                                                                : '#d9d9d9',
-                                                        borderColor:
-                                                            auction.status ===
-                                                            'pending'
-                                                                ? '#1890ff'
-                                                                : auction.status ===
-                                                                  'active'
-                                                                ? '#52c41a'
-                                                                : auction.status ===
-                                                                  'closed'
-                                                                ? '#d9d9d9'
-                                                                : auction.status ===
-                                                                  'canceled'
-                                                                ? '#ff4d4f'
-                                                                : '#d9d9d9',
-                                                        color: '#fff'
-                                                    }}
                                                 >
-                                                    {auction.status ===
-                                                    'pending'
-                                                        ? 'Sắp diễn ra'
-                                                        : auction.status ===
-                                                          'active'
-                                                        ? 'Đang diễn ra'
-                                                        : auction.status ===
-                                                          'closed'
-                                                        ? 'Đã kết thúc'
-                                                        : auction.status ===
-                                                          'canceled'
-                                                        ? 'Tạm hoãn'
-                                                        : 'Chưa biết'}
+                                                    Đăng ký tham gia
                                                 </Button>
-                                            </Link>
+                                            ) : (
+                                                <Link
+                                                    to={`/auctions/${auction.id}`}
+                                                >
+                                                    <Button
+                                                        style={{
+                                                            margin: '0 auto',
+                                                            maxWidth: '100px'
+                                                        }}
+                                                        type={
+                                                            auction.status ===
+                                                            'active'
+                                                                ? 'primary'
+                                                                : 'default'
+                                                        }
+                                                        block
+                                                    >
+                                                        {auction.status ===
+                                                        'active'
+                                                            ? 'Đang diễn ra'
+                                                            : 'Xem chi tiết'}
+                                                    </Button>
+                                                </Link>
+                                            )
                                         ]}
                                     >
                                         <Meta
                                             title={
                                                 <Link
-                                                    to={`/auction/${auction.id}`}
+                                                    to={`/auctions/${auction.id}`}
                                                 >
                                                     {auction.Product?.title}
                                                 </Link>
@@ -555,6 +563,68 @@ const Auctions = () => {
                             </Col>
                         )}
                     </Row>
+
+                    {/* Registration Modal */}
+                    <Modal
+                        title='Đăng ký tham gia đấu giá'
+                        open={isRegistrationModalVisible}
+                        onCancel={() => setIsRegistrationModalVisible(false)}
+                        footer={[
+                            <Button
+                                key='back'
+                                onClick={() =>
+                                    setIsRegistrationModalVisible(false)
+                                }
+                            >
+                                Hủy
+                            </Button>,
+                            <Button
+                                key='submit'
+                                type='primary'
+                                onClick={handleRegistrationSubmit}
+                            >
+                                Xác nhận đăng ký
+                            </Button>
+                        ]}
+                    >
+                        <Form form={form} layout='vertical'>
+                            <Form.Item label='Thông tin phiên đấu giá'>
+                                <Space direction='vertical'>
+                                    <Text strong>
+                                        {selectedAuction?.Product?.title}
+                                    </Text>
+                                    <Text type='secondary'>
+                                        Bắt đầu:{' '}
+                                        {new Date(
+                                            selectedAuction?.start_time
+                                        ).toLocaleString()}
+                                    </Text>
+                                    <Text type='secondary'>
+                                        Kết thúc:{' '}
+                                        {new Date(
+                                            selectedAuction?.end_time
+                                        ).toLocaleString()}
+                                    </Text>
+                                </Space>
+                            </Form.Item>
+                            <Form.Item
+                                name='agreement'
+                                valuePropName='checked'
+                                rules={[
+                                    {
+                                        required: true,
+                                        message:
+                                            'Vui lòng đồng ý với điều khoản tham gia'
+                                    }
+                                ]}
+                            >
+                                <Checkbox>
+                                    Tôi đồng ý với các điều khoản và điều kiện
+                                    tham gia đấu giá
+                                </Checkbox>
+                            </Form.Item>
+                        </Form>
+                    </Modal>
 
                     {/* Pagination */}
                     <div style={{ marginTop: '40px', textAlign: 'center' }}>
