@@ -615,6 +615,17 @@ const BiddingDetail = () => {
                                         <Tag color='red'>Đã kết thúc</Tag>
                                     )}
                                 </Descriptions.Item>
+                                {auction.status === 'closed' &&
+                                    auction.winner && (
+                                        <Descriptions.Item label='Người thắng cuộc'>
+                                            <Tag
+                                                color='gold'
+                                                icon={<UserOutlined />}
+                                            >
+                                                {auction.winner.name}
+                                            </Tag>
+                                        </Descriptions.Item>
+                                    )}
                             </Descriptions>
                         </Card>
                     </Col>

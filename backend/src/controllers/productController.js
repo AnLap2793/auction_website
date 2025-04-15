@@ -16,6 +16,19 @@ const getAllProducts = async (req, res) => {
     }
 };
 
+// Tạo sản phẩm mới
+const createProduct = async (req, res) => {
+    try {
+        const result = await productService.createProduct(req.body);
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 // Lấy chi tiết sản phẩm theo ID
 const getProductById = async (req, res) => {
     try {
@@ -77,6 +90,7 @@ const getProductBySellerID = async (req, res) => {
 
 module.exports = {
     getAllProducts,
+    createProduct,
     getProductById,
     updateProduct,
     deleteProduct,

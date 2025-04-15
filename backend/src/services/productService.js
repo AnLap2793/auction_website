@@ -20,6 +20,76 @@ class ProductService {
         }
     }
 
+    // Tạo sản phẩm mới
+    async createProduct(productData) {
+        try {
+            // Tạo sản phẩm mới
+            const newProduct = await Product.create({
+                title: productData.title,
+                description: productData.description,
+                starting_price: productData.starting_price,
+                category_id: productData.category_id,
+                seller_id: productData.seller_id,
+                created_at: new Date(),
+                updated_at: new Date()
+            });
+
+            // Xử lý thêm ảnh sản phẩm nếu có
+            if (productData.ProductImages && productData.ProductImages.length > 0) {
+                // Lọc ra các URL ảnh hợp lệ
+                const validImages = productData.ProductImages
+                    .filter(img => img && img.image_url && typeof img.image_url === 'string' && img.image_url.trim() !== '');
+                
+                if (validImages.length > 0) {
+                    // Lưu URL vào database
+                    const createPromises = validImages.map(img => 
+                        ProductImage.create({
+                            product_id: newProduct.id,
+                            image_url: img.image_url
+                        })
+                    );
+
+                    await Promise.all(createPromises);
+                }
+            } 
+            // Hỗ trợ cả định dạng cũ (mảng URLs) để tương thích ngược
+            else if (productData.images && productData.images.length > 0) {
+                // Lọc ra các URL ảnh hợp lệ
+                const imageUrls = productData.images
+                    .filter(url => url && typeof url === 'string' && url.trim() !== '');
+                
+                if (imageUrls.length > 0) {
+                    // Lưu URL vào database
+                    const createPromises = imageUrls.map(url => 
+                        ProductImage.create({
+                            product_id: newProduct.id,
+                            image_url: url
+                        })
+                    );
+
+                    await Promise.all(createPromises);
+                }
+            }
+
+            // Lấy lại thông tin sản phẩm đã tạo bao gồm cả ảnh
+            const createdProduct = await Product.findByPk(newProduct.id, {
+                include: [
+                    { model: Category, attributes: ['id', 'name'] },
+                    { model: User, attributes: ['id', 'first_name', 'last_name', 'email'] },
+                    { model: ProductImage, attributes: ['id', 'image_url'] }
+                ]
+            });
+
+            return {
+                success: true,
+                message: 'Tạo sản phẩm mới thành công',
+                data: createdProduct
+            };
+        } catch (error) {
+            throw new Error('Lỗi khi tạo sản phẩm mới: ' + error.message);
+        }
+    }
+
     // Lấy chi tiết sản phẩm theo ID
     async getProductById(productId) {
         try {

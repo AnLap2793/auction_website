@@ -5,6 +5,9 @@ const {getAllProducts, getProductById, createProduct, updateProduct, deleteProdu
 // Lấy danh sách sản phẩm
 router.get('/', getAllProducts);
 
+// Tạo sản phẩm mới
+router.post('/', createProduct);
+
 // Lấy chi tiết sản phẩm theo ID
 //router.get('/:id', getProductById);
 

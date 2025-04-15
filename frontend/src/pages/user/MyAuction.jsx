@@ -21,7 +21,9 @@ import {
     Space,
     Divider,
     Table,
-    message
+    message,
+    Spin,
+    Tooltip
 } from 'antd';
 import {
     ShoppingOutlined,
@@ -34,9 +36,15 @@ import {
     AppstoreOutlined,
     PlusSquareOutlined
 } from '@ant-design/icons';
-import { getProductBySellerID } from '../../services/productService';
+import {
+    getProductBySellerID,
+    createProduct,
+    updateProduct
+} from '../../services/productService';
 import { getAllCategories } from '../../services/categoryService';
 import auctionService from '../../services/auctionService';
+import { uploadImages } from '../../services/imageService';
+import moment from 'moment';
 const { TabPane } = Tabs;
 const { Option } = Select;
 const { TextArea } = Input;
@@ -48,13 +56,21 @@ const MyAuctions = () => {
     const [products, setProducts] = useState([]);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isProductModalVisible, setIsProductModalVisible] = useState(false);
+    const [isEditModalVisible, setIsEditModalVisible] = useState(false);
     const [form] = Form.useForm();
     const [productForm] = Form.useForm();
+    const [editForm] = Form.useForm();
     const [selectedProducts, setSelectedProducts] = useState([]);
+    const [editingProduct, setEditingProduct] = useState(null);
     const [activeAuctions, setActiveAuctions] = useState([]);
     const [completedAuctions, setCompletedAuctions] = useState([]);
     const [categories, setCategories] = useState([]);
     const [registrations, setRegistrations] = useState({});
+    const [registrationModalVisible, setRegistrationModalVisible] =
+        useState(false);
+    const [currentAuctionId, setCurrentAuctionId] = useState(null);
+    const [auctionRegistrations, setAuctionRegistrations] = useState([]);
+    const [loadingRegistrations, setLoadingRegistrations] = useState(false);
 
     // Kiểm tra nếu người dùng không phải là người bán hoặc chưa đăng nhập
     useEffect(() => {
@@ -70,8 +86,14 @@ const MyAuctions = () => {
         }
         fetchProductBySellerID();
         fetchCategories();
-        //Lấy sản phẩm của người bán
     }, [user, navigate]);
+
+    // Theo dõi và cập nhật bidCount khi completedAuctions thay đổi
+    useEffect(() => {
+        if (completedAuctions.length > 0) {
+            fetchBidCount();
+        }
+    }, [completedAuctions]);
 
     // Hiển thị trang loading trong khi kiểm tra
     if (!user || user.role !== 'seller') {
@@ -128,11 +150,21 @@ const MyAuctions = () => {
                             title: product.name,
                             description: product.description,
                             startingPrice: parseFloat(product.startingPrice),
-                            currentBid: parseFloat(product.startingPrice), // Cần cập nhật từ API thực tế
-                            bidCount: 0, // Cần cập nhật từ API thực tế
-                            endDate: new Date(
-                                auction.end_time
-                            ).toLocaleDateString('vi-VN'),
+                            currentBid:
+                                parseFloat(auction.current_bid) ||
+                                parseFloat(product.startingPrice),
+                            bidCount: 0,
+                            registerCount: 0,
+                            endDate: new Date(auction.end_time).toLocaleString(
+                                'vi-VN',
+                                {
+                                    year: 'numeric',
+                                    month: 'numeric',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                }
+                            ),
                             timeLeft: getTimeLeft(auction.end_time),
                             imageUrl:
                                 product.images[0] ||
@@ -142,25 +174,39 @@ const MyAuctions = () => {
                             status: auction.status,
                             startTime: new Date(
                                 auction.start_time
-                            ).toLocaleDateString('vi-VN'),
+                            ).toLocaleString('vi-VN', {
+                                year: 'numeric',
+                                month: 'numeric',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }),
                             bidIncrement: parseFloat(auction.bid_increment)
                         });
                     });
                 }
             });
-            console.log(auctionsFromProducts);
+            //console.log(auctionsFromProducts);
 
             // Phân loại phiên đấu giá theo trạng thái
             const active = auctionsFromProducts.filter(
-                (auction) => auction.status === 'active'
+                (auction) =>
+                    auction.status === 'active' || auction.status === 'pending'
             );
             const completed = auctionsFromProducts.filter(
                 (auction) =>
                     auction.status === 'closed' || auction.status === 'canceled'
             );
+            //console.log(active);
 
             setActiveAuctions(active);
             setCompletedAuctions(completed);
+
+            // Gọi fetchBidCount ngay sau khi cập nhật completed auctions
+            if (completed.length > 0) {
+                // Sử dụng setTimeout để đảm bảo state đã được cập nhật
+                setTimeout(() => fetchBidCount(), 0);
+            }
 
             // Lấy số lượt đăng ký đấu giá cho từng phiên đấu giá
             const fetchRegistrationsData = async () => {
@@ -172,12 +218,13 @@ const MyAuctions = () => {
                             await auctionService.getAuctionRegistrations(
                                 auction.id
                             );
+
                         const updatedAuctions = [...active, ...completed].map(
                             (a) => {
                                 if (a.id === auction.id) {
                                     return {
                                         ...a,
-                                        bidCount:
+                                        registerCount:
                                             regResponse.data
                                                 .total_registrations || 0
                                     };
@@ -188,7 +235,8 @@ const MyAuctions = () => {
 
                         // Cập nhật lại danh sách đấu giá
                         const updatedActive = updatedAuctions.filter(
-                            (a) => a.status === 'active'
+                            (a) =>
+                                a.status === 'active' || a.status === 'pending'
                         );
                         const updatedCompleted = updatedAuctions.filter(
                             (a) =>
@@ -237,10 +285,65 @@ const MyAuctions = () => {
         return `${diffDays}d ${diffHours}h`;
     };
 
-    const conditions = ['New', 'Like New', 'Excellent', 'Good', 'Fair', 'Poor'];
+    // Hàm lấy số lượt đặt giá thực tế
+    const fetchBidCount = async () => {
+        try {
+            // Chỉ lấy dữ liệu cho những phiên đấu giá chưa có bidCount hoặc bidCount = 0
+            const auctionsNeedBidCount = completedAuctions.filter(
+                (auction) => !auction.bidCount
+            );
 
-    const handleCreateAuction = () => {
-        setIsModalVisible(true);
+            if (auctionsNeedBidCount.length === 0) {
+                return; // Không cần gọi API nếu tất cả auction đã có bidCount
+            }
+
+            // Tạo một mảng chứa tất cả các promise để gọi API
+            const bidPromises = auctionsNeedBidCount.map(async (auction) => {
+                try {
+                    const response = await auctionService.getAuctionBids(
+                        auction.id
+                    );
+                    if (response && response.data) {
+                        return {
+                            auctionId: auction.id,
+                            bidCount: response.data.length || 0
+                        };
+                    }
+                    return { auctionId: auction.id, bidCount: 0 };
+                } catch (error) {
+                    console.error(
+                        `Lỗi khi lấy lượt đặt giá cho phiên đấu giá ${auction.id}:`,
+                        error
+                    );
+                    return { auctionId: auction.id, bidCount: 0 };
+                }
+            });
+
+            // Đợi tất cả các promise hoàn thành
+            const results = await Promise.all(bidPromises);
+
+            // Cập nhật state với số lượt đặt giá mới
+            const updatedCompletedAuctions = completedAuctions.map(
+                (auction) => {
+                    // Nếu auction đã có bidCount, giữ nguyên giá trị đó
+                    if (auction.bidCount) {
+                        return auction;
+                    }
+
+                    const result = results.find(
+                        (r) => r.auctionId === auction.id
+                    );
+                    return {
+                        ...auction,
+                        bidCount: result ? result.bidCount : 0
+                    };
+                }
+            );
+
+            setCompletedAuctions(updatedCompletedAuctions);
+        } catch (error) {
+            console.error('Lỗi khi lấy số lượt đặt giá:', error);
+        }
     };
 
     const handleCreateProduct = () => {
@@ -258,135 +361,190 @@ const MyAuctions = () => {
         productForm.resetFields();
     };
 
-    // Thêm hàm để kết thúc phiên đấu giá sớm
-    const handleEndAuctionEarly = (auctionId) => {
-        Modal.confirm({
-            title: 'Kết thúc phiên đấu giá sớm',
-            content:
-                'Bạn có chắc chắn muốn kết thúc phiên đấu giá này sớm không? Hành động này không thể hoàn tác.',
-            okText: 'Đồng ý',
-            cancelText: 'Hủy',
-            onOk: async () => {
-                try {
-                    // Trong thực tế, gọi API để kết thúc phiên đấu giá
-                    // await endAuctionEarly(auctionId);
+    // Hàm hiển thị modal danh sách đăng ký đấu giá
+    const showRegistrationsModal = async (auctionId) => {
+        setCurrentAuctionId(auctionId);
+        setLoadingRegistrations(true);
+        setRegistrationModalVisible(true);
 
-                    // Cập nhật UI
-                    const updatedActiveAuctions = activeAuctions.filter(
-                        (auction) => auction.id !== auctionId
-                    );
+        try {
+            const response = await auctionService.getAuctionRegistrations(
+                auctionId
+            );
+            //console.log('Danh sách đăng ký:', response);
 
-                    // Tìm phiên đấu giá đã kết thúc và thêm vào danh sách hoàn thành
-                    const endedAuction = activeAuctions.find(
-                        (auction) => auction.id === auctionId
-                    );
-
-                    if (endedAuction) {
-                        // Nếu có đấu giá, coi như đã bán
-                        const status =
-                            endedAuction.bidCount > 0 ? 'sold' : 'not_sold';
-                        const endedAuctionWithStatus = {
-                            ...endedAuction,
-                            status,
-                            finalPrice:
-                                endedAuction.bidCount > 0
-                                    ? endedAuction.currentBid
-                                    : 0,
-                            endDate: new Date().toISOString().split('T')[0]
-                        };
-
-                        setCompletedAuctions([
-                            endedAuctionWithStatus,
-                            ...completedAuctions
-                        ]);
-                    }
-
-                    setActiveAuctions(updatedActiveAuctions);
-                    message.success('Đã kết thúc phiên đấu giá');
-                } catch (error) {
-                    message.error('Lỗi khi kết thúc phiên đấu giá');
-                }
+            if (response && response.data && response.data.registrations) {
+                setAuctionRegistrations(response.data.registrations);
+            } else {
+                setAuctionRegistrations([]);
+                message.info(
+                    'Không có người đăng ký nào cho phiên đấu giá này'
+                );
             }
-        });
+        } catch (error) {
+            console.error('Lỗi khi lấy danh sách đăng ký:', error);
+            message.error('Không thể lấy danh sách đăng ký');
+            setAuctionRegistrations([]);
+        } finally {
+            setLoadingRegistrations(false);
+        }
     };
 
-    const handleSubmit = (values) => {
-        console.log('Submitted auction:', values);
-        console.log('Selected products:', selectedProducts);
-        // In a real app, you would submit this to your backend
+    // Hàm đóng modal danh sách đăng ký
+    const handleRegistrationModalClose = () => {
+        setRegistrationModalVisible(false);
+        setCurrentAuctionId(null);
+        setAuctionRegistrations([]);
+    };
 
-        // Thêm xử lý tạo đấu giá mới
+    const handleSubmit = async () => {
         try {
-            // Giả lập API call
-            // const response = await createAuction(values, selectedProducts);
+            const values = await form.validateFields();
 
-            // Cập nhật trạng thái sản phẩm thành "in_auction"
-            const updatedProducts = products.map((product) => {
-                if (
-                    selectedProducts.some(
-                        (selected) => selected.id === product.id
-                    )
-                ) {
-                    return { ...product, auctionStatus: 'in_auction' };
-                }
-                return product;
-            });
+            // Hiển thị thông báo loading
+            message.loading('Đang tạo phiên đấu giá...', 0);
 
-            // Tạo đấu giá mới
-            const newAuction = {
-                id:
-                    activeAuctions.length > 0
-                        ? Math.max(...activeAuctions.map((a) => a.id)) + 1
-                        : 1,
-                title: values.title,
-                description: values.description,
-                startingPrice: values.startingPrice,
-                currentBid: values.startingPrice, // Ban đầu giá hiện tại = giá khởi điểm
-                bidCount: 0,
-                endDate: values.endDate.format('YYYY-MM-DD'),
-                timeLeft: '30d', // Tính toán thời gian còn lại
-                imageUrl:
-                    selectedProducts[0]?.images[0] ||
-                    'https://via.placeholder.com/150',
-                category: selectedProducts[0]?.category || 'Other',
-                productIds: selectedProducts.map((p) => p.id),
-                status: 'active'
+            // Chuẩn bị dữ liệu theo định dạng chuẩn
+            const createData = {
+                product_id: selectedProducts[0]?.id,
+                bid_increment: values.bidIncrement,
+                start_time: values.startDate.toISOString(),
+                end_time: values.endDate.toISOString(),
+                status: 'pending'
             };
 
-            // Cập nhật state
-            setActiveAuctions([...activeAuctions, newAuction]);
-            setProducts(updatedProducts);
+            // Gọi API tạo đấu giá
+            await auctionService.createAuction(createData);
+            message.destroy(); // Xóa thông báo loading
 
-            message.success('Đã tạo phiên đấu giá mới thành công!');
+            // Thông báo thành công và làm mới dữ liệu
+            message.success('Tạo phiên đấu giá thành công');
+            setIsModalVisible(false);
+            form.resetFields();
+            setSelectedProducts([]);
+            fetchProductBySellerID(); // Làm mới danh sách
         } catch (error) {
-            message.error('Lỗi khi tạo phiên đấu giá');
+            message.destroy();
+            console.error('Lỗi khi tạo phiên đấu giá:', error);
+            message.error(
+                error.response?.data?.message || 'Không thể tạo phiên đấu giá'
+            );
         }
-
-        setIsModalVisible(false);
-        form.resetFields();
-        setSelectedProducts([]);
     };
 
-    const handleProductSubmit = (values) => {
-        console.log('Submitted product:', values);
-        // In a real app, you would submit this to your backend and get an ID
-        const newProduct = {
-            id: products.length + 1,
-            name: values.name,
-            description: values.description,
-            category: values.category,
-            condition: values.condition,
-            images: values.images
-                ? values.images.map((img) =>
-                      URL.createObjectURL(img.originFileObj)
-                  )
-                : [],
-            addedDate: new Date().toISOString().split('T')[0]
-        };
+    const handleProductSubmit = async (values) => {
+        try {
+            console.log('Submitted product form values:', values);
 
-        setProducts([...products, newProduct]);
-        setIsProductModalVisible(false);
-        productForm.resetFields();
+            let imageUrls = [];
+
+            // Xử lý upload ảnh lên Cloudinary
+            if (values.images && values.images.length > 0) {
+                console.log(
+                    'Bắt đầu upload ảnh, số lượng:',
+                    values.images.length
+                );
+                const formData = new FormData();
+
+                // Thêm tất cả các file vào FormData
+                values.images.forEach((file, index) => {
+                    console.log(`File ${index}:`, file);
+                    formData.append('images', file.originFileObj);
+                });
+
+                try {
+                    message.loading('Đang tải ảnh lên...', 0);
+                    const uploadResponse = await uploadImages(formData);
+                    message.destroy();
+
+                    console.log('Upload response:', uploadResponse);
+
+                    if (uploadResponse && uploadResponse.data) {
+                        // Lấy URL ảnh từ response
+                        imageUrls = uploadResponse.data.map((img) => img.url);
+                        console.log('Upload ảnh thành công. URL:', imageUrls);
+                    } else {
+                        message.error('Không thể tải ảnh lên');
+                        return;
+                    }
+                } catch (uploadError) {
+                    message.destroy();
+                    console.error('Lỗi khi tải lên hình ảnh:', uploadError);
+                    message.error(
+                        'Không thể tải lên hình ảnh: ' +
+                            (uploadError.message || 'Đã xảy ra lỗi')
+                    );
+                    return;
+                }
+            } else {
+                console.log('Không có ảnh để upload');
+            }
+
+            // Chuẩn bị dữ liệu để gửi API
+            const productData = {
+                title: values.title,
+                description: values.description,
+                category_id: values.category,
+                starting_price: values.starting_price,
+                seller_id: user.id,
+                ProductImages: imageUrls.map((url) => ({ image_url: url }))
+            };
+
+            console.log('Dữ liệu sản phẩm gửi đi:', productData);
+
+            // Gọi API tạo sản phẩm
+            const response = await createProduct(productData);
+            console.log('API response:', response);
+
+            if (response.success) {
+                message.success('Tạo sản phẩm mới thành công!');
+
+                // Cập nhật danh sách sản phẩm
+                const newProduct = response.data;
+                console.log('Sản phẩm mới từ API:', newProduct);
+
+                // Format sản phẩm để phù hợp với cấu trúc hiện tại
+                const formattedProduct = {
+                    id: newProduct.id,
+                    name: newProduct.title,
+                    title: newProduct.title,
+                    description: newProduct.description,
+                    category: newProduct.category_id,
+                    startingPrice: newProduct.starting_price,
+                    images: newProduct.ProductImages
+                        ? newProduct.ProductImages.map((img) => img.image_url)
+                        : [],
+                    addedDate: new Date(
+                        newProduct.created_at
+                    ).toLocaleDateString('vi-VN'),
+                    seller: {
+                        id: user.id,
+                        firstName: user.first_name,
+                        lastName: user.last_name,
+                        email: user.email
+                    },
+                    auctions: [],
+                    auctionStatus: 'available'
+                };
+
+                console.log('Sản phẩm đã định dạng:', formattedProduct);
+                setProducts([...products, formattedProduct]);
+
+                // Đóng modal và reset form
+                setIsProductModalVisible(false);
+                productForm.resetFields();
+
+                // Làm mới danh sách sản phẩm
+                fetchProductBySellerID();
+            } else {
+                message.error('Có lỗi xảy ra khi tạo sản phẩm!');
+            }
+        } catch (error) {
+            console.error('Lỗi khi tạo sản phẩm:', error);
+            message.error(
+                'Không thể tạo sản phẩm: ' + (error.message || 'Đã xảy ra lỗi')
+            );
+        }
     };
 
     const normFile = (e) => {
@@ -400,6 +558,116 @@ const MyAuctions = () => {
         onChange: (selectedRowKeys, selectedRows) => {
             setSelectedProducts(selectedRows);
         }
+    };
+
+    const handleEditProduct = (product) => {
+        setEditingProduct(product);
+        editForm.setFieldsValue({
+            title: product.name,
+            description: product.description,
+            category: product.category.id || product.category,
+            starting_price: product.startingPrice
+        });
+
+        // Chuẩn bị fileList cho Upload component
+        const fileList = product.images.map((url, index) => ({
+            uid: `-${index}`,
+            name: `image-${index}.jpg`,
+            status: 'done',
+            url: url
+        }));
+
+        editForm.setFieldsValue({ images: fileList });
+        setIsEditModalVisible(true);
+    };
+
+    const handleEditSubmit = async (values) => {
+        try {
+            message.loading('Đang cập nhật sản phẩm...', 0);
+
+            // Xử lý upload ảnh nếu có ảnh mới
+            let imageUrls = [];
+            let hasNewImages = false;
+
+            if (values.images && values.images.length > 0) {
+                // Phân biệt giữa ảnh đã có và ảnh mới
+                const existingImages = values.images
+                    .filter((file) => file.url)
+                    .map((file) => file.url);
+
+                const newImages = values.images.filter(
+                    (file) => !file.url && file.originFileObj
+                );
+
+                imageUrls = [...existingImages];
+
+                if (newImages.length > 0) {
+                    hasNewImages = true;
+                    const formData = new FormData();
+                    newImages.forEach((file) => {
+                        formData.append('images', file.originFileObj);
+                    });
+
+                    try {
+                        const uploadResponse = await uploadImages(formData);
+
+                        if (uploadResponse && uploadResponse.data) {
+                            const newUrls = uploadResponse.data.map(
+                                (img) => img.url
+                            );
+                            imageUrls = [...imageUrls, ...newUrls];
+                        }
+                    } catch (error) {
+                        message.error('Lỗi khi tải lên hình ảnh mới');
+                        console.error(error);
+                    }
+                }
+            }
+
+            // Chuẩn bị dữ liệu cập nhật
+            const updatedProductData = {
+                id: editingProduct.id,
+                title: values.title,
+                description: values.description,
+                category_id: values.category,
+                starting_price: values.starting_price,
+                ProductImages: imageUrls.map((url) => ({ image_url: url }))
+            };
+
+            // Gọi API cập nhật sản phẩm
+            const response = await updateProduct(
+                editingProduct.id,
+                updatedProductData
+            );
+
+            if (response.success) {
+                message.success('Cập nhật sản phẩm thành công!');
+
+                // Cập nhật lại danh sách sản phẩm
+                fetchProductBySellerID();
+
+                // Đóng modal và reset form
+                setIsEditModalVisible(false);
+                setEditingProduct(null);
+                editForm.resetFields();
+            } else {
+                message.error('Có lỗi xảy ra khi cập nhật sản phẩm!');
+            }
+        } catch (error) {
+            console.error('Lỗi khi cập nhật sản phẩm:', error);
+            message.error(
+                'Không thể cập nhật sản phẩm: ' +
+                    (error.message || 'Đã xảy ra lỗi')
+            );
+        } finally {
+            message.destroy();
+        }
+    };
+
+    const handleEditCancel = () => {
+        setIsEditModalVisible(false);
+        setEditingProduct(null);
+        editForm.resetFields();
     };
 
     return (
@@ -420,13 +688,6 @@ const MyAuctions = () => {
                             onClick={handleCreateProduct}
                         >
                             Thêm Sản Phẩm Mới
-                        </Button>
-                        <Button
-                            type='primary'
-                            icon={<PlusOutlined />}
-                            onClick={handleCreateAuction}
-                        >
-                            Tạo Phiên Đấu Giá Mới
                         </Button>
                     </Space>
                 </Col>
@@ -528,10 +789,17 @@ const MyAuctions = () => {
                                                 <Space>
                                                     {record.auctionStatus ===
                                                     'available' ? (
-                                                        <div>
-                                                            <Button size='small'>
+                                                        <Space.Compact>
+                                                            <Button
+                                                                size='small'
+                                                                onClick={() =>
+                                                                    handleEditProduct(
+                                                                        record
+                                                                    )
+                                                                }
+                                                            >
                                                                 Chỉnh Sửa
-                                                            </Button>{' '}
+                                                            </Button>
                                                             <Button
                                                                 size='small'
                                                                 type='primary'
@@ -545,8 +813,8 @@ const MyAuctions = () => {
                                                                 }}
                                                             >
                                                                 Đấu Giá Ngay
-                                                            </Button>{' '}
-                                                        </div>
+                                                            </Button>
+                                                        </Space.Compact>
                                                     ) : (
                                                         <Tag color='success'>
                                                             Đã đấu giá
@@ -605,20 +873,19 @@ const MyAuctions = () => {
                                                     }
                                                     actions={[
                                                         <Link
-                                                            to={`/auction/${auction.id}`}
+                                                            to={`/auctions/${auction.id}`}
                                                         >
                                                             Xem Chi Tiết
                                                         </Link>,
                                                         <Button
                                                             type='text'
-                                                            danger
                                                             onClick={() =>
-                                                                handleEndAuctionEarly(
+                                                                showRegistrationsModal(
                                                                     auction.id
                                                                 )
                                                             }
                                                         >
-                                                            Kết Thúc Sớm
+                                                            Xem Đăng Ký
                                                         </Button>
                                                     ]}
                                                 >
@@ -654,9 +921,24 @@ const MyAuctions = () => {
                                                             }}
                                                         />
                                                         <Row gutter={[8, 8]}>
+                                                            <Col span={24}>
+                                                                <Tag
+                                                                    color={
+                                                                        auction.status ===
+                                                                        'pending'
+                                                                            ? 'orange'
+                                                                            : 'green'
+                                                                    }
+                                                                >
+                                                                    {auction.status ===
+                                                                    'pending'
+                                                                        ? 'Sắp diễn ra'
+                                                                        : 'Đang diễn ra'}
+                                                                </Tag>
+                                                            </Col>
                                                             <Col span={12}>
                                                                 <Text type='secondary'>
-                                                                    Current Bid
+                                                                    Giá hiện tại
                                                                 </Text>
                                                                 <br />
                                                                 <Text
@@ -673,19 +955,20 @@ const MyAuctions = () => {
                                                             </Col>
                                                             <Col span={12}>
                                                                 <Text type='secondary'>
-                                                                    Bids
+                                                                    Lượt tham
+                                                                    gia
                                                                 </Text>
                                                                 <br />
                                                                 <Text strong>
                                                                     {
-                                                                        auction.bidCount
+                                                                        auction.registerCount
                                                                     }
                                                                 </Text>
                                                             </Col>
                                                             <Col span={12}>
                                                                 <Text type='secondary'>
-                                                                    Starting
-                                                                    Price
+                                                                    Giá khởi
+                                                                    điểm
                                                                 </Text>
                                                                 <br />
                                                                 <Text strong>
@@ -697,7 +980,8 @@ const MyAuctions = () => {
                                                             </Col>
                                                             <Col span={12}>
                                                                 <Text type='secondary'>
-                                                                    Time Left
+                                                                    Thơi gian
+                                                                    kết thúc
                                                                 </Text>
                                                                 <br />
                                                                 <Text
@@ -771,21 +1055,15 @@ const MyAuctions = () => {
                                         )}
                                     />
                                     <Table.Column
-                                        title='Danh Mục'
-                                        dataIndex='category'
-                                        key='category'
-                                        render={(text) => (
-                                            <Tag color='blue'>{text}</Tag>
-                                        )}
-                                    />
-                                    <Table.Column
                                         title='Giá Khởi Điểm'
                                         dataIndex='startingPrice'
                                         key='startingPrice'
                                         render={(price) =>
-                                            `${price.toLocaleString(
-                                                'vi-VN'
-                                            )} VNĐ`
+                                            price
+                                                ? `${price.toLocaleString(
+                                                      'vi-VN'
+                                                  )} VNĐ`
+                                                : '0 VNĐ'
                                         }
                                     />
                                     <Table.Column
@@ -807,6 +1085,7 @@ const MyAuctions = () => {
                                         title='Lượt Đấu Giá'
                                         dataIndex='bidCount'
                                         key='bidCount'
+                                        render={(bidCount) => bidCount || 0}
                                     />
                                     <Table.Column
                                         title='Bắt Đầu'
@@ -844,7 +1123,7 @@ const MyAuctions = () => {
                                         title='Thao Tác'
                                         key='actions'
                                         render={(_, record) => (
-                                            <Link to={`/auction/${record.id}`}>
+                                            <Link to={`/auctions/${record.id}`}>
                                                 Xem Chi Tiết
                                             </Link>
                                         )}
@@ -870,7 +1149,7 @@ const MyAuctions = () => {
                     onFinish={handleProductSubmit}
                 >
                     <Form.Item
-                        name='name'
+                        name='title'
                         label='Tên Sản Phẩm'
                         rules={[
                             {
@@ -925,26 +1204,30 @@ const MyAuctions = () => {
 
                         <Col span={12}>
                             <Form.Item
-                                name='condition'
-                                label='Tình Trạng'
+                                name='starting_price'
+                                label='Giá Khởi Điểm (VNĐ)'
                                 rules={[
                                     {
                                         required: true,
-                                        message:
-                                            'Vui lòng chọn tình trạng sản phẩm'
+                                        message: 'Vui lòng nhập giá khởi điểm'
                                     }
                                 ]}
                             >
-                                <Select placeholder='Chọn tình trạng sản phẩm'>
-                                    {conditions.map((condition) => (
-                                        <Option
-                                            key={condition}
-                                            value={condition}
-                                        >
-                                            {condition}
-                                        </Option>
-                                    ))}
-                                </Select>
+                                <InputNumber
+                                    min={1000}
+                                    placeholder='0'
+                                    style={{ width: '100%' }}
+                                    prefix={<DollarOutlined />}
+                                    formatter={(value) =>
+                                        `${value}`.replace(
+                                            /\B(?=(\d{3})+(?!\d))/g,
+                                            ','
+                                        )
+                                    }
+                                    parser={(value) =>
+                                        value.replace(/\$\s?|(,*)/g, '')
+                                    }
+                                />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -991,70 +1274,95 @@ const MyAuctions = () => {
 
             {/* Create Auction Modal */}
             <Modal
-                title='Tạo Phiên Đấu Giá Mới'
+                title='Đăng Đấu Giá Sản Phẩm'
                 open={isModalVisible}
                 onCancel={handleCancel}
                 footer={null}
                 width={800}
             >
                 <Form form={form} layout='vertical' onFinish={handleSubmit}>
-                    <Form.Item
-                        label='Chọn Sản Phẩm Để Đấu Giá'
-                        required
-                        style={{ marginBottom: '20px' }}
-                    >
-                        {selectedProducts.length > 0 ? (
-                            <List
-                                dataSource={selectedProducts}
-                                renderItem={(item) => (
-                                    <List.Item>
-                                        <List.Item.Meta
-                                            avatar={
-                                                <img
-                                                    src={item.images[0]}
-                                                    alt={item.name}
-                                                    style={{
-                                                        width: '60px',
-                                                        height: '60px',
-                                                        objectFit: 'cover'
-                                                    }}
-                                                />
-                                            }
-                                            title={item.name}
-                                            description={
-                                                <Space>
-                                                    <Tag color='blue'>
-                                                        {item.category}
-                                                    </Tag>
-                                                    <Tag color='green'>
-                                                        {item.condition}
-                                                    </Tag>
-                                                </Space>
-                                            }
+                    {selectedProducts.length > 0 ? (
+                        <div style={{ marginBottom: '20px' }}>
+                            <div
+                                style={{
+                                    fontWeight: 'bold',
+                                    marginBottom: '10px'
+                                }}
+                            >
+                                Sản phẩm đấu giá:
+                            </div>
+                            <Card size='small'>
+                                <Card.Meta
+                                    avatar={
+                                        <img
+                                            src={selectedProducts[0]?.images[0]}
+                                            alt={selectedProducts[0]?.name}
+                                            style={{
+                                                width: '80px',
+                                                height: '80px',
+                                                objectFit: 'cover'
+                                            }}
                                         />
-                                        <Button
-                                            type='text'
-                                            danger
-                                            onClick={() =>
-                                                setSelectedProducts(
-                                                    selectedProducts.filter(
-                                                        (p) => p.id !== item.id
-                                                    )
-                                                )
-                                            }
-                                        >
-                                            Xóa
-                                        </Button>
-                                    </List.Item>
-                                )}
-                            />
-                        ) : (
+                                    }
+                                    title={selectedProducts[0]?.name}
+                                    description={
+                                        <>
+                                            <div>
+                                                <Tag color='blue'>
+                                                    {(() => {
+                                                        const category =
+                                                            categories.find(
+                                                                (c) =>
+                                                                    c.id ===
+                                                                    selectedProducts[0]
+                                                                        ?.category
+                                                            );
+                                                        return category
+                                                            ? category.name
+                                                            : selectedProducts[0]
+                                                                  ?.category;
+                                                    })()}
+                                                </Tag>
+                                            </div>
+                                            <div style={{ marginTop: '5px' }}>
+                                                <Text strong>
+                                                    Giá khởi điểm:{' '}
+                                                    {Number(
+                                                        selectedProducts[0]
+                                                            ?.startingPrice
+                                                    ).toLocaleString(
+                                                        'vi-VN'
+                                                    )}{' '}
+                                                    VNĐ
+                                                </Text>
+                                            </div>
+                                            <div style={{ marginTop: '5px' }}>
+                                                <Text>
+                                                    {
+                                                        selectedProducts[0]
+                                                            ?.description
+                                                    }
+                                                </Text>
+                                            </div>
+                                        </>
+                                    }
+                                />
+                            </Card>
+                        </div>
+                    ) : (
+                        <Form.Item
+                            label='Chọn Sản Phẩm Để Đấu Giá'
+                            required
+                            style={{ marginBottom: '20px' }}
+                        >
                             <Table
                                 rowSelection={{
-                                    type: 'checkbox',
+                                    type: 'radio', // Chỉ cho phép chọn một sản phẩm
                                     ...rowSelection
                                 }}
-                                dataSource={products}
+                                dataSource={products.filter(
+                                    (p) => p.auctionStatus === 'available'
+                                )}
                                 rowKey='id'
                                 pagination={false}
                                 size='small'
@@ -1098,140 +1406,24 @@ const MyAuctions = () => {
                                     }}
                                 />
                                 <Table.Column
-                                    title='Tình Trạng'
-                                    dataIndex='condition'
-                                    key='condition'
-                                    render={(text) => {
-                                        const colorMap = {
-                                            New: 'green',
-                                            'Like New': 'green',
-                                            Excellent: 'lime',
-                                            Good: 'blue',
-                                            Fair: 'orange',
-                                            Poor: 'red'
-                                        };
-                                        return (
-                                            <Tag
-                                                color={colorMap[text] || 'blue'}
-                                            >
-                                                {text}
-                                            </Tag>
-                                        );
-                                    }}
+                                    title='Giá Khởi Điểm'
+                                    dataIndex='startingPrice'
+                                    key='startingPrice'
+                                    render={(price) => (
+                                        <span>
+                                            {Number(price).toLocaleString(
+                                                'vi-VN'
+                                            )}{' '}
+                                            VNĐ
+                                        </span>
+                                    )}
                                 />
                             </Table>
-                        )}
-                    </Form.Item>
-
-                    <Form.Item
-                        name='title'
-                        label='Tiêu Đề Phiên Đấu Giá'
-                        rules={[
-                            {
-                                required: true,
-                                message: 'Vui lòng nhập tiêu đề phiên đấu giá'
-                            }
-                        ]}
-                    >
-                        <Input
-                            prefix={<FileTextOutlined />}
-                            placeholder='Nhập tiêu đề mô tả'
-                        />
-                    </Form.Item>
-
-                    <Form.Item
-                        name='description'
-                        label='Mô Tả'
-                        rules={[
-                            {
-                                required: true,
-                                message: 'Vui lòng nhập mô tả'
-                            }
-                        ]}
-                    >
-                        <TextArea
-                            placeholder='Mô tả chi tiết về phiên đấu giá, bao gồm thông tin về sản phẩm và các điều kiện đặc biệt'
-                            rows={4}
-                        />
-                    </Form.Item>
+                        </Form.Item>
+                    )}
 
                     <Row gutter={[16, 16]}>
-                        <Col span={12}>
-                            <Form.Item
-                                name='startingPrice'
-                                label='Giá Khởi Điểm (VNĐ)'
-                                rules={[
-                                    {
-                                        required: true,
-                                        message: 'Vui lòng nhập giá khởi điểm'
-                                    }
-                                ]}
-                            >
-                                <InputNumber
-                                    min={1}
-                                    placeholder='0'
-                                    style={{ width: '100%' }}
-                                    prefix={<DollarOutlined />}
-                                    formatter={(value) =>
-                                        `${value}`.replace(
-                                            /\B(?=(\d{3})+(?!\d))/g,
-                                            ','
-                                        )
-                                    }
-                                    parser={(value) =>
-                                        value.replace(/\$\s?|(,*)/g, '')
-                                    }
-                                />
-                            </Form.Item>
-                        </Col>
-
-                        <Col span={12}>
-                            <Form.Item
-                                name='reservePrice'
-                                label='Giá Đáy (VNĐ) (Tùy chọn)'
-                                tooltip='Giá tối thiểu phải đạt được để sản phẩm được bán'
-                            >
-                                <InputNumber
-                                    min={0}
-                                    placeholder='0'
-                                    style={{ width: '100%' }}
-                                    prefix={<DollarOutlined />}
-                                    formatter={(value) =>
-                                        `${value}`.replace(
-                                            /\B(?=(\d{3})+(?!\d))/g,
-                                            ','
-                                        )
-                                    }
-                                    parser={(value) =>
-                                        value.replace(/\$\s?|(,*)/g, '')
-                                    }
-                                />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-
-                    <Row gutter={[16, 16]}>
-                        <Col span={12}>
-                            <Form.Item
-                                name='endDate'
-                                label='Ngày & Giờ Kết Thúc'
-                                rules={[
-                                    {
-                                        required: true,
-                                        message:
-                                            'Vui lòng chọn ngày và giờ kết thúc'
-                                    }
-                                ]}
-                            >
-                                <DatePicker
-                                    showTime
-                                    style={{ width: '100%' }}
-                                    prefix={<ClockCircleOutlined />}
-                                />
-                            </Form.Item>
-                        </Col>
-
-                        <Col span={12}>
+                        <Col span={8}>
                             <Form.Item
                                 name='bidIncrement'
                                 label='Bước Giá (VNĐ)'
@@ -1241,6 +1433,7 @@ const MyAuctions = () => {
                                         message: 'Vui lòng nhập bước giá'
                                     }
                                 ]}
+                                initialValue={1000}
                             >
                                 <InputNumber
                                     min={1000}
@@ -1259,26 +1452,347 @@ const MyAuctions = () => {
                                 />
                             </Form.Item>
                         </Col>
-                    </Row>
 
-                    <Form.Item
-                        name='additionalTerms'
-                        label='Điều Khoản Bổ Sung (Tùy chọn)'
-                    >
-                        <TextArea
-                            placeholder='Nhập bất kỳ điều khoản hoặc điều kiện bổ sung nào cho phiên đấu giá này'
-                            rows={3}
-                        />
-                    </Form.Item>
+                        <Col span={8}>
+                            <Form.Item
+                                name='startDate'
+                                label='Ngày & Giờ Bắt Đầu'
+                                rules={[
+                                    {
+                                        required: true,
+                                        message:
+                                            'Vui lòng chọn ngày và giờ bắt đầu'
+                                    }
+                                ]}
+                            >
+                                <DatePicker
+                                    showTime={{ format: 'HH:mm' }}
+                                    format='YYYY-MM-DD HH:mm'
+                                    style={{ width: '100%' }}
+                                    prefix={<ClockCircleOutlined />}
+                                    placeholder='Chọn thời điểm bắt đầu'
+                                    disabledDate={(current) =>
+                                        current &&
+                                        current < moment().startOf('day')
+                                    }
+                                />
+                            </Form.Item>
+                        </Col>
+
+                        <Col span={8}>
+                            <Form.Item
+                                name='endDate'
+                                label='Ngày & Giờ Kết Thúc'
+                                rules={[
+                                    {
+                                        required: true,
+                                        message:
+                                            'Vui lòng chọn ngày và giờ kết thúc'
+                                    }
+                                ]}
+                                dependencies={['startDate']}
+                            >
+                                <DatePicker
+                                    showTime={{ format: 'HH:mm' }}
+                                    format='YYYY-MM-DD HH:mm'
+                                    style={{ width: '100%' }}
+                                    prefix={<ClockCircleOutlined />}
+                                    placeholder='Chọn thời điểm kết thúc'
+                                    disabledDate={(current) => {
+                                        const startDate =
+                                            form.getFieldValue('startDate');
+                                        return (
+                                            current &&
+                                            (current <
+                                                moment().startOf('day') ||
+                                                (startDate &&
+                                                    current <= startDate))
+                                        );
+                                    }}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
                     <Form.Item>
                         <Space>
-                            <Button type='primary' htmlType='submit'>
-                                Đăng Phiên Đấu Giá
+                            <Button type='default' onClick={handleCancel}>
+                                Hủy
+                            </Button>
+                            <Button
+                                type='primary'
+                                htmlType='submit'
+                                disabled={selectedProducts.length === 0}
+                            >
+                                Đăng Đấu Giá
                             </Button>
                         </Space>
                     </Form.Item>
                 </Form>
+            </Modal>
+
+            {/* Modal hiển thị danh sách đăng ký */}
+            <Modal
+                title='Danh sách đăng ký tham gia đấu giá'
+                open={registrationModalVisible}
+                onCancel={handleRegistrationModalClose}
+                footer={[
+                    <Button key='close' onClick={handleRegistrationModalClose}>
+                        Đóng
+                    </Button>
+                ]}
+                width={800}
+            >
+                {loadingRegistrations ? (
+                    <div style={{ textAlign: 'center', padding: '20px' }}>
+                        <Spin size='large' />
+                        <p>Đang tải danh sách đăng ký...</p>
+                    </div>
+                ) : (
+                    <>
+                        {auctionRegistrations.length > 0 ? (
+                            <Table
+                                dataSource={auctionRegistrations}
+                                rowKey='id'
+                                pagination={{ pageSize: 10 }}
+                            >
+                                <Table.Column
+                                    title='Người dùng'
+                                    key='user'
+                                    render={(record) => (
+                                        <div>
+                                            <Text strong>
+                                                {record.user.first_name}{' '}
+                                                {record.user.last_name}
+                                            </Text>
+                                            <br />
+                                            <Text type='secondary'>
+                                                {record.user.email}
+                                            </Text>
+                                        </div>
+                                    )}
+                                />
+                                <Table.Column
+                                    title='Ngày đăng ký'
+                                    dataIndex='registration_date'
+                                    key='registration_date'
+                                    render={(date) =>
+                                        new Date(date).toLocaleDateString(
+                                            'vi-VN',
+                                            {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            }
+                                        )
+                                    }
+                                />
+                                <Table.Column
+                                    title='Trạng thái'
+                                    dataIndex='status'
+                                    key='status'
+                                    render={(status) => {
+                                        let color = 'default';
+                                        let text = 'Không xác định';
+
+                                        if (status === 'pending') {
+                                            color = 'warning';
+                                            text = 'Chờ duyệt';
+                                        } else if (status === 'approved') {
+                                            color = 'success';
+                                            text = 'Đã duyệt';
+                                        } else if (status === 'rejected') {
+                                            color = 'error';
+                                            text = 'Từ chối';
+                                        }
+
+                                        return <Tag color={color}>{text}</Tag>;
+                                    }}
+                                />
+                                <Table.Column
+                                    title='Thao tác'
+                                    key='actions'
+                                    render={(record) => (
+                                        <Space>
+                                            {record.status === 'pending' && (
+                                                <>
+                                                    <Button
+                                                        size='small'
+                                                        type='primary'
+                                                    >
+                                                        Duyệt
+                                                    </Button>
+                                                    <Button size='small' danger>
+                                                        Từ chối
+                                                    </Button>
+                                                </>
+                                            )}
+                                            {record.status === 'approved' && (
+                                                <Button size='small' danger>
+                                                    Hủy duyệt
+                                                </Button>
+                                            )}
+                                            {record.status === 'rejected' && (
+                                                <Button
+                                                    size='small'
+                                                    type='primary'
+                                                >
+                                                    Duyệt lại
+                                                </Button>
+                                            )}
+                                        </Space>
+                                    )}
+                                />
+                            </Table>
+                        ) : (
+                            <Empty description='Không có người đăng ký nào cho phiên đấu giá này' />
+                        )}
+                    </>
+                )}
+            </Modal>
+
+            {/* Edit Product Modal */}
+            <Modal
+                title='Chỉnh Sửa Sản Phẩm'
+                open={isEditModalVisible}
+                onCancel={handleEditCancel}
+                footer={null}
+                width={800}
+            >
+                {editingProduct && (
+                    <Form
+                        form={editForm}
+                        layout='vertical'
+                        onFinish={handleEditSubmit}
+                        initialValues={{
+                            title: editingProduct.name,
+                            description: editingProduct.description,
+                            category: editingProduct.category,
+                            starting_price: editingProduct.startingPrice
+                        }}
+                    >
+                        <Form.Item
+                            name='title'
+                            label='Tên Sản Phẩm'
+                            rules={[
+                                {
+                                    required: true,
+                                    message: 'Vui lòng nhập tên sản phẩm'
+                                }
+                            ]}
+                        >
+                            <Input placeholder='Nhập tên mô tả sản phẩm' />
+                        </Form.Item>
+
+                        <Form.Item
+                            name='description'
+                            label='Mô Tả'
+                            rules={[
+                                {
+                                    required: true,
+                                    message: 'Vui lòng nhập mô tả sản phẩm'
+                                }
+                            ]}
+                        >
+                            <TextArea
+                                placeholder='Mô tả chi tiết về sản phẩm, bao gồm tình trạng, nguồn gốc, và các đặc điểm nổi bật'
+                                rows={4}
+                            />
+                        </Form.Item>
+
+                        <Row gutter={[16, 16]}>
+                            <Col span={12}>
+                                <Form.Item
+                                    name='category'
+                                    label='Danh Mục'
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: 'Vui lòng chọn danh mục'
+                                        }
+                                    ]}
+                                >
+                                    <Select placeholder='Chọn danh mục sản phẩm'>
+                                        {categories.map((category) => (
+                                            <Option
+                                                key={category.id}
+                                                value={category.id}
+                                            >
+                                                {category.name}
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+
+                            <Col span={12}>
+                                <Form.Item
+                                    name='starting_price'
+                                    label='Giá Khởi Điểm (VNĐ)'
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message:
+                                                'Vui lòng nhập giá khởi điểm'
+                                        }
+                                    ]}
+                                >
+                                    <InputNumber
+                                        min={1000}
+                                        placeholder='0'
+                                        style={{ width: '100%' }}
+                                        prefix={<DollarOutlined />}
+                                        formatter={(value) =>
+                                            `${value}`.replace(
+                                                /\B(?=(\d{3})+(?!\d))/g,
+                                                ','
+                                            )
+                                        }
+                                        parser={(value) =>
+                                            value.replace(/\$\s?|(,*)/g, '')
+                                        }
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+
+                        <Form.Item
+                            name='images'
+                            label='Hình Ảnh'
+                            valuePropName='fileList'
+                            getValueFromEvent={normFile}
+                        >
+                            <Upload
+                                listType='picture-card'
+                                beforeUpload={() => false}
+                                multiple
+                            >
+                                <div>
+                                    <UploadOutlined />
+                                    <div style={{ marginTop: '8px' }}>
+                                        Tải lên
+                                    </div>
+                                </div>
+                            </Upload>
+                        </Form.Item>
+
+                        <Form.Item>
+                            <Space>
+                                <Button
+                                    type='default'
+                                    onClick={handleEditCancel}
+                                >
+                                    Hủy
+                                </Button>
+                                <Button type='primary' htmlType='submit'>
+                                    Cập Nhật Sản Phẩm
+                                </Button>
+                            </Space>
+                        </Form.Item>
+                    </Form>
+                )}
             </Modal>
         </div>
     );

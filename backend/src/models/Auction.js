@@ -39,6 +39,11 @@ const Auction = sequelize.define('Auction', {
     allowNull: true,
     defaultValue: null
   },
+  current_winner_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    defaultValue: null
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

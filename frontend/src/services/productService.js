@@ -10,6 +10,16 @@ const getAllProducts = async () => {
     }
 }
 
+// Tạo sản phẩm mới
+const createProduct = async (productData) => {
+    try {
+        const response = await axios.post('/products', productData);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+}
+
 // Cập nhật sản phẩm
 const updateProduct = async (productId, productData) => {
     try {
@@ -42,6 +52,7 @@ const getProductBySellerID = async (seller_id) => {
 
 export  {
     getAllProducts,
+    createProduct,
     updateProduct,
     deleteProduct,
     getProductBySellerID

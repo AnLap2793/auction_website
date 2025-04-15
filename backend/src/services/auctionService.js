@@ -4,7 +4,9 @@ const Bid = require('../models/Bid');
 const ProductImage = require('../models/ProductImage');
 const AuctionRegistration = require('../models/AuctionRegistration');
 const User = require('../models/User');
+const AuctionWinner = require('../models/AuctionWinner');
 const { Op, Sequelize } = require('sequelize');
+const Category = require('../models/Category');
 
 // Lấy tất cả các phiên đấu giá
 const getAllAuctions = async (filters = {}) => {
@@ -101,14 +103,32 @@ const getAllAuctions = async (filters = {}) => {
   }
 };
 
-// Lấy chi tiết phiên đấu giá theo ID
+// Lấy chi tiết phiên đấu giá
 const getAuctionById = async (id) => {
   try {
     const auction = await Auction.findByPk(id, {
       include: [
         {
           model: Product,
-          include: { model: ProductImage, attributes: ['id', 'image_url'] }
+          include: [
+            {
+              model: Category,
+              attributes: ['id', 'name']
+            },
+            {
+              model: ProductImage,
+              attributes: ['id', 'image_url']
+            }
+          ]
+        },
+        {
+          model: AuctionWinner,
+          include: [
+            {
+              model: User,
+              attributes: ['id', 'email', 'first_name', 'last_name']
+            }
+          ]
         }
       ]
     });
@@ -117,12 +137,34 @@ const getAuctionById = async (id) => {
       throw new Error('Không tìm thấy phiên đấu giá');
     }
     
+    // Định dạng dữ liệu để trả về
+    const auctionData = {
+      id: auction.id,
+      product_id: auction.product_id,
+      start_time: auction.start_time,
+      end_time: auction.end_time,
+      status: auction.status,
+      bid_increment: auction.bid_increment,
+      current_bid: auction.current_bid,
+      Product: auction.Product,
+      winner: null // Mặc định là null
+    };
+    
+    // Nếu phiên đấu giá đã kết thúc và có người thắng
+    if ((auction.status === 'closed') && auction.AuctionWinner) {
+      auctionData.winner = {
+        id: auction.AuctionWinner.User.id,
+        email: auction.AuctionWinner.User.email,
+        name: `${auction.AuctionWinner.User.first_name} ${auction.AuctionWinner.User.last_name}`
+      };
+    }
+    
     return {
       success: true,
-      data: auction
+      data: auctionData
     };
   } catch (error) {
-    throw new Error(`Không thể lấy thông tin đấu giá: ${error.message}`);
+    throw new Error(`Không thể lấy thông tin phiên đấu giá: ${error.message}`);
   }
 };
 
@@ -294,18 +336,53 @@ const updateAuctionStatus = async () => {
       }
     );
     
-    // Cập nhật các phiên đấu giá đang diễn ra thành đã kết thúc
-    await Auction.update(
-      { status: 'closed' },
-      {
-        where: {
-          status: 'active',
-          end_time: {
-            [Op.lte]: now
-          }
+    // Lấy danh sách các phiên đấu giá đang diễn ra và đã kết thúc thời gian
+    const endedAuctions = await Auction.findAll({
+      where: {
+        status: 'active',
+        end_time: {
+          [Op.lte]: now
         }
       }
-    );
+    });
+
+    // Xử lý từng phiên đấu giá đã kết thúc
+    for (const auction of endedAuctions) {
+      // Cập nhật trạng thái phiên đấu giá thành 'closed'
+      await auction.update({ status: 'closed' });
+      
+      // Tìm giá cao nhất và người đặt giá cao nhất
+      const highestBid = await Bid.findOne({
+        where: { auction_id: auction.id },
+        order: [['bid_amount', 'DESC']],
+        include: [{ model: User }]
+      });
+      
+      // Nếu có người đặt giá thì tạo bản ghi AuctionWinner
+      if (highestBid) {
+        // Kiểm tra xem đã có bản ghi winner chưa
+        const existingWinner = await AuctionWinner.findOne({
+          where: { auction_id: auction.id }
+        });
+        
+        // Nếu chưa có thì tạo mới
+        if (!existingWinner) {
+          await AuctionWinner.create({
+            auction_id: auction.id,
+            winner_id: highestBid.user_id
+          });
+          
+          // Gửi thông báo cho người thắng cuộc (có thể thêm sau)
+          // await Notification.create({
+          //   user_id: highestBid.user_id,
+          //   title: 'Chúc mừng! Bạn đã thắng phiên đấu giá',
+          //   message: `Bạn đã thắng phiên đấu giá sản phẩm với giá ${highestBid.bid_amount.toLocaleString()} VNĐ`,
+          //   type: 'auction_win',
+          //   is_read: false
+          // });
+        }
+      }
+    }
     
     return {
       success: true,
@@ -455,8 +532,8 @@ const placeBid = async (bidData) => {
     
     // Cập nhật giá cao nhất của phiên đấu giá
     await auction.update({
-      current_bid: parseFloat(bid_amount)
-      //current_winner_id: user_id
+      current_bid: parseFloat(bid_amount),
+      current_winner_id: user_id
     });
     
     return {
