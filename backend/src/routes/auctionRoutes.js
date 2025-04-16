@@ -11,9 +11,10 @@ const {
   deleteAuction,
   getAuctionBids,
   placeBid,
-  registerForAuction
+  registerForAuction,
+  updateRegistrationStatus
 } = require('../controllers/auctionController');
-const { authenticateToken } = require('../middlewares/auth');
+const { authenticateToken, checkRole } = require('../middlewares/auth');
 
 // Lấy danh sách phiên đấu giá
 router.get('/', getAllAuctions);
@@ -26,6 +27,9 @@ router.get('/:id/registrations', getAuctionRegistrations);
 
 // Đăng ký tham gia đấu giá
 router.post('/:id/register', authenticateToken, registerForAuction);
+
+// Cập nhật trạng thái đăng ký đấu giá
+router.patch('/:auctionId/registrations/:registrationId', authenticateToken, checkRole(['seller', 'admin']), updateRegistrationStatus);
 
 // Tạo phiên đấu giá mới
 router.post('/', createAuction);

@@ -597,6 +597,63 @@ const registerForAuction = async (auctionId, userId) => {
 
 };
 
+// Cập nhật trạng thái đăng ký đấu giá
+const updateRegistrationStatus = async (auctionId, registrationId, status, userId) => {
+  try {
+    // Kiểm tra xem phiên đấu giá có tồn tại không
+    const auction = await Auction.findByPk(auctionId);
+    if (!auction) {
+      throw new Error('Không tìm thấy phiên đấu giá');
+    }
+
+    // Kiểm tra trạng thái hợp lệ
+    const validStatuses = ['pending', 'approved', 'rejected'];
+    if (!validStatuses.includes(status)) {
+      throw new Error('Trạng thái không hợp lệ');
+    }
+
+    // Kiểm tra đăng ký tồn tại
+    const registration = await AuctionRegistration.findOne({
+      where: {
+        id: registrationId,
+        auction_id: auctionId
+      },
+      include: {
+        model: Auction,
+        attributes: ['id', 'product_id'],
+        include: {
+          model: Product,
+          attributes: ['seller_id']
+        }
+      }
+    });
+
+    if (!registration) {
+      throw new Error('Không tìm thấy đăng ký đấu giá');
+    }
+
+    // Kiểm tra xem người cập nhật có phải là người bán của sản phẩm không
+    if (registration.Auction.Product.seller_id !== userId) {
+      throw new Error('Bạn không có quyền cập nhật trạng thái đăng ký này');
+    }
+
+    // Cập nhật trạng thái
+    registration.status = status;
+    await registration.save();
+
+    return {
+      success: true,
+      message: 'Cập nhật trạng thái đăng ký thành công',
+      data: {
+        id: registration.id,
+        status: registration.status
+      }
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   getAllAuctions,
   getAuctionById,
@@ -608,5 +665,6 @@ module.exports = {
   deleteAuction,
   getAuctionBids,
   placeBid,
-  registerForAuction
+  registerForAuction,
+  updateRegistrationStatus
 };

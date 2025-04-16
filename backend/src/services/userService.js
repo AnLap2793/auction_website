@@ -1,4 +1,4 @@
-const { User, Transaction, Auction, Product, AuctionWinner } = require('../models');
+const { User, Transaction, Auction, Product, AuctionWinner, Bid } = require('../models');
 
 // Lấy danh sách người dùng
 const getAllUsers = async () => {
@@ -92,31 +92,10 @@ const getUserBidStats = async (userId) => {
       throw new Error('Không tìm thấy người dùng');
     }
 
-    // Lấy anonymous_winner_id từ bảng auction_winners
-    const auctionWinners = await AuctionWinner.findAll({
+    // Lấy tất cả các lần đặt giá của người dùng từ bảng Bid
+    const bids = await Bid.findAll({
       where: {
-        real_winner_id: userId
-      }
-    });
-
-    if (!auctionWinners.length) {
-      return {
-        success: false,
-        data: {
-          totalBids: 0,
-          auctionsWon: 0,
-          activeBids: 0,
-          bidHistory: []
-        }
-      };
-    }
-
-    const anonymousIds = auctionWinners.map(aw => aw.anonymous_winner_id);
-
-    // Lấy tất cả các giao dịch của người dùng
-    const transactions = await Transaction.findAll({
-      where: {
-        anonymous_winner_id: anonymousIds
+        user_id: userId
       },
       include: [{
         model: Auction,
@@ -124,23 +103,45 @@ const getUserBidStats = async (userId) => {
           model: Product,
           attributes: ['id', 'title', 'description']
         }]
-      }]
+      }],
+      order: [['created_at', 'DESC']]
+    });
+
+    // Lấy các cuộc đấu giá đã thắng từ bảng AuctionWinner
+    const auctionsWon = await AuctionWinner.count({
+      where: {
+        winner_id: userId
+      }
+    });
+
+    // Đếm các đấu giá đang hoạt động mà người dùng tham gia
+    const activeBids = await Bid.count({
+      where: {
+        user_id: userId
+      },
+      include: [{
+        model: Auction,
+        where: {
+          status: 'active'
+        }
+      }],
+      distinct: true,
+      col: 'auction_id'
     });
 
     // Tính toán thống kê
     const stats = {
-      totalBids: transactions.length,
-      auctionsWon: transactions.filter(t => t.status === 'completed').length,
-      activeBids: transactions.filter(t => t.status === 'pending').length,
-      bidHistory: transactions.map(t => ({
-        id: t.id,
-        item: t.Auction?.Product?.title || 'Sản phẩm đấu giá',
-        date: t.created_at,
-        amount: t.amount,
-        status: t.status,
-        transaction_code: t.transaction_code,
-        payment_method: t.payment_method,
-        product_id: t.Auction?.Product?.id
+      totalBids: bids.length,
+      auctionsWon: auctionsWon,
+      activeBids: activeBids,
+      bidHistory: bids.map(bid => ({
+        id: bid.id,
+        item: bid.Auction?.Product?.title || 'Sản phẩm đấu giá',
+        date: bid.created_at,
+        amount: bid.bid_amount,
+        status: bid.Auction?.status,
+        auction_id: bid.auction_id,
+        product_id: bid.Auction?.Product?.id
       }))
     };
 

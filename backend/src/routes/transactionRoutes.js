@@ -5,7 +5,8 @@ const {
   getTransactionById,
   createTransaction,
   updateTransactionStatus,
-  getTransactionsByAuctionId
+  getTransactionsByAuctionId,
+  getUserTransactions
 } = require('../controllers/transactionController');
 
 // Lấy tất cả transactions
@@ -22,5 +23,8 @@ router.patch('/:id/status', updateTransactionStatus);
 
 // Lấy transactions theo auction_id
 router.get('/auction/:auctionId', getTransactionsByAuctionId);
+
+// Lấy transactions theo user_id
+router.get('/user/:userId', getUserTransactions);
 
 module.exports = router;

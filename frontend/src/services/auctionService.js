@@ -86,6 +86,16 @@ const auctionService = {
         } catch (error) {
             throw new Error(error.response?.data?.message || 'Không thể xóa phiên đấu giá');
         }
+    },
+
+    // Cập nhật trạng thái đăng ký đấu giá
+    updateRegistrationStatus: async (auctionId, registrationId, status) => {
+        try {
+            const response = await axios.patch(`/auctions/${auctionId}/registrations/${registrationId}`, { status });
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Không thể cập nhật trạng thái đăng ký');
+        }
     }
 };
 

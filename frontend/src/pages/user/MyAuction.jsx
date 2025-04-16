@@ -397,6 +397,87 @@ const MyAuctions = () => {
         setAuctionRegistrations([]);
     };
 
+    // Hàm xử lý duyệt đăng ký
+    const handleApproveRegistration = async (registrationId) => {
+        try {
+            message.loading('Đang xử lý...', 0);
+            await auctionService.updateRegistrationStatus(
+                currentAuctionId,
+                registrationId,
+                'approved'
+            );
+            message.destroy();
+            message.success('Đã duyệt đăng ký thành công');
+
+            // Cập nhật lại danh sách đăng ký
+            const updatedRegistrations = auctionRegistrations.map((reg) => {
+                if (reg.id === registrationId) {
+                    return { ...reg, status: 'approved' };
+                }
+                return reg;
+            });
+            setAuctionRegistrations(updatedRegistrations);
+        } catch (error) {
+            message.destroy();
+            console.error('Lỗi khi duyệt đăng ký:', error);
+            message.error('Không thể duyệt đăng ký: ' + error.message);
+        }
+    };
+
+    // Hàm xử lý từ chối đăng ký
+    const handleRejectRegistration = async (registrationId) => {
+        try {
+            message.loading('Đang xử lý...', 0);
+            await auctionService.updateRegistrationStatus(
+                currentAuctionId,
+                registrationId,
+                'rejected'
+            );
+            message.destroy();
+            message.success('Đã từ chối đăng ký thành công');
+
+            // Cập nhật lại danh sách đăng ký
+            const updatedRegistrations = auctionRegistrations.map((reg) => {
+                if (reg.id === registrationId) {
+                    return { ...reg, status: 'rejected' };
+                }
+                return reg;
+            });
+            setAuctionRegistrations(updatedRegistrations);
+        } catch (error) {
+            message.destroy();
+            console.error('Lỗi khi từ chối đăng ký:', error);
+            message.error('Không thể từ chối đăng ký: ' + error.message);
+        }
+    };
+
+    // Hàm xử lý hủy duyệt đăng ký
+    const handleCancelApproval = async (registrationId) => {
+        try {
+            message.loading('Đang xử lý...', 0);
+            await auctionService.updateRegistrationStatus(
+                currentAuctionId,
+                registrationId,
+                'pending'
+            );
+            message.destroy();
+            message.success('Đã hủy duyệt đăng ký thành công');
+
+            // Cập nhật lại danh sách đăng ký
+            const updatedRegistrations = auctionRegistrations.map((reg) => {
+                if (reg.id === registrationId) {
+                    return { ...reg, status: 'pending' };
+                }
+                return reg;
+            });
+            setAuctionRegistrations(updatedRegistrations);
+        } catch (error) {
+            message.destroy();
+            console.error('Lỗi khi hủy duyệt đăng ký:', error);
+            message.error('Không thể hủy duyệt đăng ký: ' + error.message);
+        }
+    };
+
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
@@ -1067,7 +1148,7 @@ const MyAuctions = () => {
                                         }
                                     />
                                     <Table.Column
-                                        title='Giá Cuối Cùng'
+                                        title='Giá Chót'
                                         dataIndex='finalPrice'
                                         key='finalPrice'
                                         render={(price) => (
@@ -1621,16 +1702,37 @@ const MyAuctions = () => {
                                                     <Button
                                                         size='small'
                                                         type='primary'
+                                                        onClick={() =>
+                                                            handleApproveRegistration(
+                                                                record.id
+                                                            )
+                                                        }
                                                     >
                                                         Duyệt
                                                     </Button>
-                                                    <Button size='small' danger>
+                                                    <Button
+                                                        size='small'
+                                                        danger
+                                                        onClick={() =>
+                                                            handleRejectRegistration(
+                                                                record.id
+                                                            )
+                                                        }
+                                                    >
                                                         Từ chối
                                                     </Button>
                                                 </>
                                             )}
                                             {record.status === 'approved' && (
-                                                <Button size='small' danger>
+                                                <Button
+                                                    size='small'
+                                                    danger
+                                                    onClick={() =>
+                                                        handleCancelApproval(
+                                                            record.id
+                                                        )
+                                                    }
+                                                >
                                                     Hủy duyệt
                                                 </Button>
                                             )}
@@ -1638,6 +1740,11 @@ const MyAuctions = () => {
                                                 <Button
                                                     size='small'
                                                     type='primary'
+                                                    onClick={() =>
+                                                        handleApproveRegistration(
+                                                            record.id
+                                                        )
+                                                    }
                                                 >
                                                     Duyệt lại
                                                 </Button>

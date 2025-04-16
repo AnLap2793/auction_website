@@ -193,6 +193,38 @@ const registerForAuction = async (req, res) => {
     }
 };
 
+// Cập nhật trạng thái đăng ký đấu giá
+const updateRegistrationStatus = async (req, res) => {
+    try {
+        const auctionId = req.params.auctionId;
+        const registrationId = req.params.registrationId;
+        const { status } = req.body;
+        const userId = req.user.id;
+
+        if (!status) {
+            return res.status(400).json({
+                success: false,
+                message: 'Trạng thái không được để trống'
+            });
+        }
+
+        const result = await auctionService.updateRegistrationStatus(
+            auctionId,
+            registrationId,
+            status,
+            userId
+        );
+        
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Lỗi khi cập nhật trạng thái đăng ký đấu giá:', error);
+        res.status(400).json({
+            success: false,
+            message: error.message || 'Đã xảy ra lỗi khi cập nhật trạng thái đăng ký đấu giá'
+        });
+    }
+};
+
 module.exports = {
     getAllAuctions,
     getAuctionById,
@@ -204,5 +236,6 @@ module.exports = {
     deleteAuction,
     getAuctionBids,
     placeBid,
-    registerForAuction
+    registerForAuction,
+    updateRegistrationStatus
 };

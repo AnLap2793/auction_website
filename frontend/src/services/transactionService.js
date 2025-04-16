@@ -40,6 +40,16 @@ const transactionService = {
         } catch (error) {
             throw error.response?.data || error.message;
         }
+    },
+    
+    // Lấy transactions theo user_id
+    getUserTransactions: async (userId) => {
+        try {
+            const response = await axios.get(`/transactions/user/${userId}`);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || error.message;
+        }
     }
 };
 

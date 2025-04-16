@@ -19,7 +19,8 @@ import {
     Statistic,
     Tag,
     Spin,
-    Empty
+    Empty,
+    Table
 } from 'antd';
 import {
     UserOutlined,
@@ -29,7 +30,12 @@ import {
     EditOutlined,
     UploadOutlined,
     ShoppingOutlined,
-    HistoryOutlined
+    HistoryOutlined,
+    FileTextOutlined,
+    CheckCircleOutlined,
+    CloseCircleOutlined,
+    ClockCircleOutlined,
+    DollarOutlined
 } from '@ant-design/icons';
 import { updateUser, getUserBidStats } from '../../services/apiUser';
 import auctionService from '../../services/auctionService';
@@ -43,6 +49,7 @@ const MyProfile = () => {
     const [editMode, setEditMode] = useState(false);
     const [loading, setLoading] = useState(true);
     const [bidHistory, setBidHistory] = useState([]);
+    const [transactions, setTransactions] = useState([]);
     const [statistics, setStatistics] = useState({
         totalBids: 0,
         auctionsWon: 0,
@@ -85,6 +92,8 @@ const MyProfile = () => {
             // Lấy thống kê đặt giá của người dùng
             const response = await getUserBidStats(user.id);
 
+            console.log(response);
+
             if (response.success) {
                 const { totalBids, auctionsWon, activeBids, bidHistory } =
                     response.data;
@@ -101,12 +110,15 @@ const MyProfile = () => {
                     id: item.id,
                     item: item.item,
                     date: new Date(item.date).toLocaleDateString('vi-VN'),
-                    amount: `${item.amount.toLocaleString('vi-VN')} đ`,
+                    amount: `${Number(item.amount).toLocaleString(
+                        'vi-VN'
+                    )} VNĐ`,
                     status: getTransactionStatus(item.status),
-                    transaction_code: item.transaction_code,
-                    payment_method: item.payment_method,
+                    auction_id: item.auction_id,
                     product_id: item.product_id
                 }));
+
+                console.log(formattedBidHistory);
 
                 setBidHistory(formattedBidHistory);
             } else {
@@ -117,11 +129,15 @@ const MyProfile = () => {
                     activeBids: 0
                 });
             }
+
+            // Lấy dữ liệu giao dịch
+            await fetchTransactions();
         } catch (error) {
             console.error('Lỗi khi lấy dữ liệu người dùng:', error);
             message.error('Không thể tải dữ liệu. Vui lòng thử lại sau.');
             // Reset các state về giá trị mặc định khi có lỗi
             setBidHistory([]);
+            setTransactions([]);
             setStatistics({
                 totalBids: 0,
                 auctionsWon: 0,
@@ -129,6 +145,35 @@ const MyProfile = () => {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Lấy dữ liệu giao dịch của người dùng
+    const fetchTransactions = async () => {
+        try {
+            const response = await transactionService.getUserTransactions(
+                user.id
+            );
+            if (response.success) {
+                const formattedTransactions = response.data.map((trans) => ({
+                    id: trans.id,
+                    transactionCode: trans.transaction_code,
+                    amount: Number(trans.amount),
+                    paymentMethod: trans.payment_method,
+                    status: trans.status,
+                    date: new Date(trans.created_at).toLocaleDateString(
+                        'vi-VN'
+                    ),
+                    productTitle:
+                        trans.Auction?.Product?.title || 'Sản phẩm đấu giá'
+                }));
+                setTransactions(formattedTransactions);
+            } else {
+                setTransactions([]);
+            }
+        } catch (error) {
+            console.error('Lỗi khi lấy dữ liệu giao dịch:', error);
+            setTransactions([]);
         }
     };
 
@@ -143,31 +188,6 @@ const MyProfile = () => {
                 return 'Pending';
             default:
                 return status;
-        }
-    };
-
-    // Định dạng thời gian còn lại
-    const formatTimeRemaining = (endTimeStr) => {
-        const endTime = new Date(endTimeStr);
-        const now = new Date();
-        const diffMs = endTime - now;
-
-        if (diffMs <= 0) return 'Đã kết thúc';
-
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        const diffHours = Math.floor(
-            (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-        );
-        const diffMinutes = Math.floor(
-            (diffMs % (1000 * 60 * 60)) / (1000 * 60)
-        );
-
-        if (diffDays > 0) {
-            return `${diffDays}d ${diffHours}h`;
-        } else if (diffHours > 0) {
-            return `${diffHours}h ${diffMinutes}m`;
-        } else {
-            return `${diffMinutes}m`;
         }
     };
 
@@ -220,6 +240,77 @@ const MyProfile = () => {
         return <Tag color={color}>{status}</Tag>;
     };
 
+    // Cấu hình các cột cho bảng hóa đơn
+    const transactionColumns = [
+        {
+            title: 'Mã hóa đơn',
+            dataIndex: 'transactionCode',
+            key: 'transactionCode',
+            render: (code) => <Text copyable>{code}</Text>
+        },
+        {
+            title: 'Sản phẩm',
+            dataIndex: 'productTitle',
+            key: 'productTitle'
+        },
+        {
+            title: 'Số tiền',
+            dataIndex: 'amount',
+            key: 'amount',
+            render: (amount) => `${amount.toLocaleString('vi-VN')} VNĐ`
+        },
+        {
+            title: 'Phương thức',
+            dataIndex: 'paymentMethod',
+            key: 'paymentMethod'
+        },
+        {
+            title: 'Ngày tạo',
+            dataIndex: 'date',
+            key: 'date'
+        },
+        {
+            title: 'Trạng thái',
+            dataIndex: 'status',
+            key: 'status',
+            render: (status) => {
+                let color = 'default';
+                let icon = null;
+
+                if (status === 'completed') {
+                    color = 'success';
+                    icon = <CheckCircleOutlined />;
+                } else if (status === 'failed') {
+                    color = 'error';
+                    icon = <CloseCircleOutlined />;
+                } else {
+                    color = 'processing';
+                    icon = <ClockCircleOutlined />;
+                }
+
+                return (
+                    <Tag color={color} icon={icon}>
+                        {getPaymentStatus(status)}
+                    </Tag>
+                );
+            }
+        }
+    ];
+
+    // Chuyển đổi trạng thái thanh toán sang tiếng Việt
+    const getPaymentStatus = (status) => {
+        switch (status) {
+            case 'completed':
+                return 'Đã thanh toán';
+            case 'failed':
+                return 'Thất bại';
+            case 'pending':
+                return 'Đang xử lý';
+            default:
+                return status;
+        }
+    };
+
     // Cấu hình các tab cho component Tabs
     const tabItems = [
         {
@@ -231,20 +322,91 @@ const MyProfile = () => {
             ),
             children:
                 bidHistory.length > 0 ? (
-                    <List
-                        itemLayout='horizontal'
-                        dataSource={bidHistory}
-                        renderItem={(item) => (
-                            <List.Item actions={[getStatusTag(item.status)]}>
-                                <List.Item.Meta
-                                    title={item.item}
-                                    description={`Đặt giá: ${item.amount} vào ngày ${item.date}`}
-                                />
-                            </List.Item>
-                        )}
-                    />
+                    <>
+                        <List
+                            itemLayout='horizontal'
+                            dataSource={bidHistory}
+                            pagination={{
+                                pageSize: 5,
+                                size: 'small',
+                                showSizeChanger: false,
+                                showTotal: (total) =>
+                                    `Tổng ${total} lần đấu giá`
+                            }}
+                            renderItem={(item) => (
+                                <List.Item
+                                    actions={[
+                                        <Button
+                                            type='link'
+                                            size='small'
+                                            onClick={() =>
+                                                navigate(
+                                                    `/auction/${item.auction_id}`
+                                                )
+                                            }
+                                        >
+                                            Xem
+                                        </Button>
+                                    ]}
+                                >
+                                    <List.Item.Meta
+                                        title={
+                                            <Space size='small'>
+                                                <span>{item.item}</span>
+                                                {item.status === 'Won' && (
+                                                    <Tag
+                                                        color='gold'
+                                                        size='small'
+                                                    >
+                                                        Thắng
+                                                    </Tag>
+                                                )}
+                                            </Space>
+                                        }
+                                        description={
+                                            <Text
+                                                type='secondary'
+                                                style={{ fontSize: '12px' }}
+                                            >
+                                                {item.date} - {item.amount}
+                                            </Text>
+                                        }
+                                    />
+                                    {getStatusTag(item.status)}
+                                </List.Item>
+                            )}
+                            style={{
+                                backgroundColor: '#fff',
+                                borderRadius: '8px'
+                            }}
+                        />
+                    </>
                 ) : (
                     <Empty description='Bạn chưa tham gia đấu giá nào' />
+                )
+        },
+        {
+            key: '2',
+            label: (
+                <span>
+                    <FileTextOutlined /> Hóa Đơn
+                </span>
+            ),
+            children:
+                transactions.length > 0 ? (
+                    <Table
+                        dataSource={transactions}
+                        columns={transactionColumns}
+                        rowKey='id'
+                        pagination={{
+                            pageSize: 5,
+                            size: 'small',
+                            showSizeChanger: false
+                        }}
+                        size='small'
+                    />
+                ) : (
+                    <Empty description='Bạn chưa có hóa đơn nào' />
                 )
         }
     ];

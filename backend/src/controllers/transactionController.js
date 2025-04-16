@@ -57,10 +57,28 @@ const getTransactionsByAuctionId = async (req, res) => {
   }
 };
 
+// Lấy transactions theo user_id
+const getUserTransactions = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const transactions = await transactionService.getUserTransactions(userId);
+    res.json({
+      success: true,
+      data: transactions
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllTransactions,
   getTransactionById,
   createTransaction,
   updateTransactionStatus,
-  getTransactionsByAuctionId
+  getTransactionsByAuctionId,
+  getUserTransactions
 };
