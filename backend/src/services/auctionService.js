@@ -7,6 +7,7 @@ const User = require('../models/User');
 const AuctionWinner = require('../models/AuctionWinner');
 const { Op, Sequelize } = require('sequelize');
 const Category = require('../models/Category');
+const Transaction = require('../models/Transaction');
 
 // Lấy tất cả các phiên đấu giá
 const getAllAuctions = async (filters = {}) => {
@@ -318,77 +319,107 @@ const getAuctionRegistrations = async (auctionId) => {
   }
 };
 
-// Hàm cập nhật trạng thái phiên đấu giá
+// Cập nhật trạng thái phiên đấu giá tự động
 const updateAuctionStatus = async () => {
   try {
     const now = new Date();
     
-    // Cập nhật các phiên đấu giá sắp diễn ra thành đang diễn ra
-    await Auction.update(
-      { status: 'active' },
-      {
-        where: {
-          status: 'pending',
-          start_time: {
-            [Op.lte]: now
-          }
-        }
-      }
-    );
-    
-    // Lấy danh sách các phiên đấu giá đang diễn ra và đã kết thúc thời gian
-    const endedAuctions = await Auction.findAll({
+    // Tìm các phiên đấu giá đang ở trạng thái pending và đã đến thời gian bắt đầu
+    const pendingAuctions = await Auction.findAll({
       where: {
-        status: 'active',
-        end_time: {
-          [Op.lte]: now
-        }
+        status: 'pending',
+        start_time: { [Op.lte]: now }
       }
     });
-
-    // Xử lý từng phiên đấu giá đã kết thúc
-    for (const auction of endedAuctions) {
-      // Cập nhật trạng thái phiên đấu giá thành 'closed'
+    
+    // Cập nhật trạng thái thành 'active'
+    for (const auction of pendingAuctions) {
+      await auction.update({ status: 'active' });
+      
+      // Emit socket event khi phiên đấu giá bắt đầu
+      const socketService = require('../services/socketService');
+      socketService.emitToAll('auctionStarted', {
+        auction_id: auction.id,
+        message: 'Phiên đấu giá đã bắt đầu',
+        auction: auction
+      });
+    }
+    
+    // Tìm các phiên đấu giá đang ở trạng thái active và đã đến thời gian kết thúc
+    const activeAuctions = await Auction.findAll({
+      where: {
+        status: 'active',
+        end_time: { [Op.lte]: now }
+      }
+    });
+    
+    // Cập nhật trạng thái thành 'closed'
+    for (const auction of activeAuctions) {
       await auction.update({ status: 'closed' });
       
-      // Tìm giá cao nhất và người đặt giá cao nhất
-      const highestBid = await Bid.findOne({
-        where: { auction_id: auction.id },
-        order: [['bid_amount', 'DESC']],
-        include: [{ model: User }]
-      });
+      // Lấy thông tin người thắng cuộc
+      const winner = auction.current_winner_id 
+        ? await User.findByPk(auction.current_winner_id) 
+        : null;
       
-      // Nếu có người đặt giá thì tạo bản ghi AuctionWinner
-      if (highestBid) {
-        // Kiểm tra xem đã có bản ghi winner chưa
-        const existingWinner = await AuctionWinner.findOne({
-          where: { auction_id: auction.id }
+      // Tạo kết quả đấu giá
+      if (winner) {
+        await AuctionWinner.create({
+          auction_id: auction.id,
+          user_id: winner.id,
+          winning_bid: auction.current_bid,
+          win_date: now
         });
         
-        // Nếu chưa có thì tạo mới
-        if (!existingWinner) {
-          await AuctionWinner.create({
-            auction_id: auction.id,
-            winner_id: highestBid.user_id
-          });
-          
-          // Gửi thông báo cho người thắng cuộc (có thể thêm sau)
-          // await Notification.create({
-          //   user_id: highestBid.user_id,
-          //   title: 'Chúc mừng! Bạn đã thắng phiên đấu giá',
-          //   message: `Bạn đã thắng phiên đấu giá sản phẩm với giá ${highestBid.bid_amount.toLocaleString()} VNĐ`,
-          //   type: 'auction_win',
-          //   is_read: false
-          // });
-        }
+        // Tạo giao dịch
+        await Transaction.create({
+          auction_id: auction.id,
+          user_id: winner.id,
+          amount: auction.current_bid,
+          status: 'pending',
+          transaction_type: 'auction_win',
+          created_at: now
+        });
       }
+      
+      // Emit socket event khi phiên đấu giá kết thúc
+      const socketService = require('../services/socketService');
+      
+      // Lấy thông tin sản phẩm cho phiên đấu giá
+      const auctionWithDetails = await Auction.findByPk(auction.id, {
+        include: [
+          { model: Product, include: [{ model: ProductImage }] },
+          { 
+            model: User, 
+            as: 'CurrentWinner',
+            attributes: ['id', 'first_name', 'last_name', 'email'] 
+          }
+        ]
+      });
+      
+      socketService.notifyAuctionEnded(auction.id, {
+        auction_id: auction.id,
+        message: 'Phiên đấu giá đã kết thúc',
+        auction: auctionWithDetails,
+        winner: winner ? {
+          id: winner.id,
+          name: `${winner.first_name} ${winner.last_name}`,
+          email: winner.email
+        } : null,
+        winning_bid: auction.current_bid
+      });
     }
     
     return {
       success: true,
-      message: 'Cập nhật trạng thái phiên đấu giá thành công'
+      message: 'Cập nhật trạng thái phiên đấu giá thành công',
+      data: {
+        activated: pendingAuctions.length,
+        closed: activeAuctions.length
+      }
     };
   } catch (error) {
+    console.error('Lỗi khi cập nhật trạng thái phiên đấu giá:', error);
     throw new Error(`Không thể cập nhật trạng thái phiên đấu giá: ${error.message}`);
   }
 };

@@ -117,17 +117,17 @@ JOIN auctions a ON a.product_id = p.id
 JOIN anonymous_bidders ab ON ab.anonymous_id = b.anonymous_id;
 
 -- Dữ liệu mẫu cho bảng notifications
-INSERT INTO notifications (id, user_id, message, type, is_read, created_at)
-SELECT 
-    uuid_generate_v4(),
-    u.id,
-    n.message,
-    n.type,
-    FALSE,
-    NOW()
-FROM (VALUES
-    ('buyer1@example.com', 'Bạn đã đặt giá thành công cho sản phẩm iPhone 13 Pro Max 256GB', 'bid_placed'),
-    ('buyer2@example.com', 'Bạn đã đặt giá thành công cho sản phẩm Áo khoác da nam cao cấp', 'bid_placed'),
-    ('seller1@example.com', 'Sản phẩm của bạn đã có người đặt giá', 'bid_placed')
-) AS n(user_email, message, type)
-JOIN inserted_users u ON u.email = n.user_email; 
+-- INSERT INTO notifications (id, user_id, message, type, is_read, created_at)
+-- SELECT 
+--     uuid_generate_v4(),
+--     u.id,
+--     n.message,
+--     n.type,
+--     FALSE,
+--     NOW()
+-- FROM (VALUES
+--     ('buyer1@example.com', 'Bạn đã đặt giá thành công cho sản phẩm iPhone 13 Pro Max 256GB', 'bid_placed'),
+--     ('buyer2@example.com', 'Bạn đã đặt giá thành công cho sản phẩm Áo khoác da nam cao cấp', 'bid_placed'),
+--     ('seller1@example.com', 'Sản phẩm của bạn đã có người đặt giá', 'bid_placed')
+-- ) AS n(user_email, message, type)
+-- JOIN inserted_users u ON u.email = n.user_email; 

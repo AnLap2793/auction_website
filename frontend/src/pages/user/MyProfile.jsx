@@ -207,6 +207,8 @@ const MyProfile = () => {
                 address: values.address
             };
 
+            console.log(userData);
+
             // Gọi API cập nhật thông tin người dùng
             await updateUser(user.id, userData);
 

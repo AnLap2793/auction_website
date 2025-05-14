@@ -61,6 +61,14 @@ const createAuction = async (req, res) => {
         };
         
         const result = await auctionService.createAuction(auctionData);
+        
+        // Thông báo có phiên đấu giá mới qua Socket.IO
+        const socketService = require('../services/socketService');
+        socketService.notifyNewAuction({
+            ...result.data,
+            message: 'Có phiên đấu giá mới vừa được tạo'
+        });
+        
         res.status(201).json(result);
     } catch (error) {
         res.status(400).json({
@@ -166,6 +174,18 @@ const placeBid = async (req, res) => {
     };
     
     const result = await auctionService.placeBid(bidData);
+
+    // Emit socket event khi đặt giá thành công
+    const socketService = require('../services/socketService');
+    socketService.notifyNewBid(req.params.id, {
+      ...result.data,
+      user: {
+        id: req.user.id,
+        first_name: req.user.first_name,
+        last_name: req.user.last_name
+      }
+    });
+    
     res.status(201).json(result);
   } catch (error) {
     res.status(400).json({

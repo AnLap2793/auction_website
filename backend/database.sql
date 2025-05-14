@@ -96,14 +96,14 @@ CREATE TABLE transactions (
 );
 
 -- Bảng thông báo
-CREATE TABLE notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    message TEXT NOT NULL,
-    type TEXT CHECK (type IN ('bid_placed', 'auction_won', 'payment_success', 'general')) NOT NULL,
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-); 
+-- CREATE TABLE notifications (
+--     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+--     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+--     message TEXT NOT NULL,
+--     type TEXT CHECK (type IN ('bid_placed', 'auction_won', 'payment_success', 'general')) NOT NULL,
+--     is_read BOOLEAN DEFAULT FALSE,
+--     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- ); 
 
 CREATE INDEX idx_products_seller_id ON products (seller_id);
 CREATE INDEX idx_products_category_id ON products (category_id);
@@ -113,4 +113,4 @@ CREATE INDEX idx_bids_auction_id ON bids (auction_id);
 CREATE INDEX idx_bids_anonymous_id ON bids (anonymous_id);
 CREATE INDEX idx_auction_winners_auction_id ON auction_winners (auction_id);
 CREATE INDEX idx_transactions_auction_id ON transactions (auction_id);
-CREATE INDEX idx_notifications_user_id ON notifications (user_id);
+-- CREATE INDEX idx_notifications_user_id ON notifications (user_id);

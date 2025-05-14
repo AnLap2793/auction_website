@@ -10,7 +10,7 @@ const Auction = require('./Auction');
 const Bid = require('./Bid');
 const AuctionWinner = require('./AuctionWinner');
 const Transaction = require('./Transaction');
-const Notification = require('./Notification');
+// const Notification = require('./Notification');
 const AuctionRegistration = require('./AuctionRegistration');
 
 // Định nghĩa các mối quan hệ
@@ -55,8 +55,8 @@ Auction.hasMany(Transaction, { foreignKey: 'auction_id' });
 Transaction.belongsTo(Auction, { foreignKey: 'auction_id' });
 
 // User - Notification (1:n)
-User.hasMany(Notification, { foreignKey: 'user_id' });
-Notification.belongsTo(User, { foreignKey: 'user_id' });
+// User.hasMany(Notification, { foreignKey: 'user_id' });
+// Notification.belongsTo(User, { foreignKey: 'user_id' });
 
 // Auction - AuctionRegistration (1:n)
 Auction.hasMany(AuctionRegistration, { foreignKey: 'auction_id' });
@@ -77,6 +77,6 @@ module.exports = {
   Bid,
   AuctionWinner,
   Transaction,
-  Notification,
+  // Notification,
   AuctionRegistration
 }; 

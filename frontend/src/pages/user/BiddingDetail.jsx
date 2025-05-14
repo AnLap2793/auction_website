@@ -16,7 +16,9 @@ import {
     Modal,
     Form,
     message,
-    Spin
+    Spin,
+    List,
+    Empty
 } from 'antd';
 import {
     ClockCircleOutlined,
@@ -27,12 +29,16 @@ import {
 import auctionService from '../../services/auctionService';
 import { getAllCategories } from '../../services/categoryService';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
+import moment from 'moment';
 
 const { Title, Text, Paragraph } = Typography;
 
 const BiddingDetail = () => {
     const { id } = useParams();
     const { user } = useAuth();
+    const { socket, connected, joinAuctionRoom, leaveAuctionRoom } =
+        useSocket();
     const [auction, setAuction] = useState(null);
     const [loading, setLoading] = useState(true);
     const [bidAmount, setBidAmount] = useState(0);
@@ -43,6 +49,9 @@ const BiddingDetail = () => {
     const [isRegistered, setIsRegistered] = useState(false);
     const [registrationStatus, setRegistrationStatus] = useState(null);
     const [loadingRegistration, setLoadingRegistration] = useState(false);
+    const [timeLeft, setTimeLeft] = useState('');
+    const [countdown, setCountdown] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         fetchAuctionDetails();
@@ -51,6 +60,179 @@ const BiddingDetail = () => {
             checkRegistrationStatus();
         }
     }, [id, user]);
+
+    // Tham gia phòng đấu giá khi component được mount
+    useEffect(() => {
+        if (connected && id) {
+            joinAuctionRoom(id);
+        }
+
+        return () => {
+            if (connected && id) {
+                leaveAuctionRoom(id);
+                if (countdown) {
+                    clearInterval(countdown);
+                }
+            }
+        };
+    }, [connected, id, joinAuctionRoom, leaveAuctionRoom]);
+
+    // Đăng ký lắng nghe sự kiện Socket.IO
+    useEffect(() => {
+        if (!socket) return;
+
+        // Lắng nghe sự kiện có người đặt giá mới
+        socket.on('newBid', (data) => {
+            console.log('Nhận sự kiện newBid:', data);
+
+            // Đảm bảo dữ liệu có định dạng đúng trước khi thêm vào lịch sử đặt giá
+            const safeData = {
+                ...data,
+                user_id: data.user_id || 'unknown',
+                User: data.user || { first_name: 'Người dùng', last_name: '' },
+                bid_amount: data.bid_amount || 0
+            };
+
+            // Cập nhật danh sách lịch sử đặt giá
+            setBidHistory((prevBids) => [safeData, ...prevBids]);
+
+            // Cập nhật thông tin phiên đấu giá
+            setAuction((prevAuction) => {
+                if (!prevAuction) return null;
+                const updatedAuction = {
+                    ...prevAuction,
+                    current_bid: data.bid_amount,
+                    current_winner_id: data.user_id
+                };
+
+                // Cập nhật giá cao nhất hiện tại
+                setCurrentHighestBid(parseFloat(data.bid_amount));
+
+                // Cập nhật giá đặt tối thiểu
+                const bidIncrement = prevAuction.bid_increment || 500000;
+                setBidAmount(
+                    parseFloat(data.bid_amount) + parseFloat(bidIncrement)
+                );
+
+                return updatedAuction;
+            });
+
+            // Hiển thị thông báo
+            if (data.user) {
+                message.info(
+                    `${data.user.first_name || 'Người dùng'} ${
+                        data.user.last_name || ''
+                    } đã đặt giá ${parseFloat(
+                        data.bid_amount
+                    ).toLocaleString()} VNĐ`
+                );
+            } else {
+                message.info(
+                    `Có người đã đặt giá ${parseFloat(
+                        data.bid_amount
+                    ).toLocaleString()} VNĐ`
+                );
+            }
+        });
+
+        // Lắng nghe sự kiện phiên đấu giá kết thúc
+        socket.on('auctionEnded', (data) => {
+            console.log('Nhận sự kiện auctionEnded:', data);
+
+            setAuction((prevAuction) => {
+                if (!prevAuction) return null;
+                return {
+                    ...prevAuction,
+                    status: 'closed'
+                };
+            });
+
+            if (countdown) {
+                clearInterval(countdown);
+            }
+
+            if (data.winner) {
+                if (data.winner.id === user?.id) {
+                    message.success(
+                        'Chúc mừng! Bạn đã thắng phiên đấu giá này!'
+                    );
+                } else {
+                    message.info(
+                        `Phiên đấu giá đã kết thúc. Người thắng: ${data.winner.name}`
+                    );
+                }
+            } else {
+                message.info(
+                    'Phiên đấu giá đã kết thúc. Không có người thắng cuộc.'
+                );
+            }
+        });
+
+        // Lắng nghe sự kiện phiên đấu giá bắt đầu
+        socket.on('auctionStarted', (data) => {
+            console.log('Nhận sự kiện auctionStarted:', data);
+
+            if (data.auction_id === id) {
+                message.info('Phiên đấu giá đã bắt đầu!');
+                fetchAuctionDetails(); // Tải lại thông tin phiên đấu giá
+            }
+        });
+
+        return () => {
+            socket.off('newBid');
+            socket.off('auctionEnded');
+            socket.off('auctionStarted');
+        };
+    }, [socket, auction, user, id]);
+
+    // Tính toán thời gian còn lại
+    useEffect(() => {
+        if (!auction) return;
+
+        const updateTimeLeft = () => {
+            const now = moment();
+            const end = moment(auction.end_time);
+
+            // Nếu phiên đấu giá đã kết thúc
+            if (now.isAfter(end) || auction.status === 'closed') {
+                if (countdown) {
+                    clearInterval(countdown);
+                }
+                setTimeLeft('Đã kết thúc');
+                return;
+            }
+
+            // Nếu phiên đấu giá chưa bắt đầu
+            const start = moment(auction.start_time);
+            if (now.isBefore(start)) {
+                const diff = moment.duration(start.diff(now));
+                setTimeLeft(
+                    `Bắt đầu sau: ${Math.floor(
+                        diff.asHours()
+                    )}h ${diff.minutes()}m ${diff.seconds()}s`
+                );
+                return;
+            }
+
+            // Nếu phiên đấu giá đang diễn ra
+            const diff = moment.duration(end.diff(now));
+            setTimeLeft(
+                `Còn lại: ${Math.floor(
+                    diff.asHours()
+                )}h ${diff.minutes()}m ${diff.seconds()}s`
+            );
+        };
+
+        updateTimeLeft();
+        const intervalId = setInterval(updateTimeLeft, 1000);
+        setCountdown(intervalId);
+
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+    }, [auction]);
 
     const fetchAuctionDetails = async () => {
         try {
@@ -179,6 +361,7 @@ const BiddingDetail = () => {
         }
 
         try {
+            setSubmitting(true);
             const response = await auctionService.placeBid(id, {
                 bid_amount: numericBidAmount
             });
@@ -189,14 +372,17 @@ const BiddingDetail = () => {
                 );
                 setIsModalOpen(false);
 
-                // Cập nhật lại thông tin phiên đấu giá
-                fetchAuctionDetails();
+                // Tải lại thông tin phiên đấu giá và lịch sử đấu giá
+                // fetchAuctionDetails();
+                // fetchCategories();
             } else {
                 message.error(response.message || 'Đặt giá thất bại');
             }
         } catch (error) {
             message.error(error.response?.data?.message || 'Đặt giá thất bại');
             console.error('Lỗi khi đặt giá:', error);
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -206,21 +392,94 @@ const BiddingDetail = () => {
             return;
         }
 
+        if (isRegistered) {
+            message.info('Bạn đã đăng ký tham gia phiên đấu giá này rồi');
+            return;
+        }
+
         try {
+            setLoadingRegistration(true);
             const response = await auctionService.registerForAuction(id);
 
             if (response.success) {
-                message.success('Đăng ký tham gia đấu giá thành công');
-                setIsRegistered(true);
+                message.success('Đăng ký tham gia đấu giá thành công!');
+                // Cập nhật trạng thái đăng ký
+                setRegistrationStatus('pending');
+                message.info('Đăng ký của bạn đang chờ phê duyệt từ người bán');
             } else {
-                message.error(response.message || 'Đăng ký thất bại');
+                message.error(
+                    response.message || 'Đăng ký tham gia đấu giá thất bại'
+                );
             }
         } catch (error) {
-            message.error(error.message || 'Đăng ký thất bại');
-            console.error('Lỗi khi đăng ký tham gia:', error);
+            message.error(
+                error.response?.data?.message ||
+                    'Đăng ký tham gia đấu giá thất bại'
+            );
+            console.error('Lỗi khi đăng ký tham gia đấu giá:', error);
+        } finally {
+            setLoadingRegistration(false);
         }
     };
 
+    const getRegistrationStatusText = () => {
+        if (!user) return '';
+        if (!registrationStatus) return '';
+
+        switch (registrationStatus) {
+            case 'pending':
+                return 'Đang chờ phê duyệt';
+            case 'approved':
+                return 'Đã được phê duyệt';
+            case 'rejected':
+                return 'Đã bị từ chối';
+            default:
+                return registrationStatus;
+        }
+    };
+
+    const getRegistrationStatusTag = () => {
+        if (!user) return null;
+        if (!registrationStatus) return null;
+
+        const statusColor = {
+            pending: 'orange',
+            approved: 'green',
+            rejected: 'red'
+        };
+
+        return (
+            <Tag color={statusColor[registrationStatus] || 'default'}>
+                {getRegistrationStatusText()}
+            </Tag>
+        );
+    };
+
+    // Lấy tên danh mục từ ID
+    const getCategoryName = (categoryId) => {
+        const category = categories.find((cat) => cat.id === categoryId);
+        return category ? category.name : 'Chưa phân loại';
+    };
+
+    // Lấy status tag
+    const getStatusTag = () => {
+        if (!auction) return null;
+
+        switch (auction.status) {
+            case 'pending':
+                return <Tag color='blue'>Sắp diễn ra</Tag>;
+            case 'active':
+                return <Tag color='green'>Đang diễn ra</Tag>;
+            case 'closed':
+                return <Tag color='red'>Đã kết thúc</Tag>;
+            case 'canceled':
+                return <Tag color='gray'>Đã hủy</Tag>;
+            default:
+                return <Tag>Không xác định</Tag>;
+        }
+    };
+
+    // Hiển thị trang loading
     if (loading) {
         return (
             <div
@@ -254,12 +513,6 @@ const BiddingDetail = () => {
         );
     }
 
-    // Lấy thông tin danh mục
-    const getCategoryName = (categoryId) => {
-        const category = categories.find((cat) => cat.id === categoryId);
-        return category ? category.name : 'Chưa phân loại';
-    };
-
     // Tính thời gian còn lại
     const getTimeRemaining = () => {
         const endTime = new Date(auction.end_time).getTime();
@@ -285,7 +538,7 @@ const BiddingDetail = () => {
                         <Card>
                             <Image
                                 src={
-                                    auction.Product?.ProductImages[0]
+                                    auction.Product?.ProductImages?.[0]
                                         ?.image_url ||
                                     'https://placeholder.com/400'
                                 }
@@ -561,7 +814,7 @@ const BiddingDetail = () => {
                                 </div>
                             )}
 
-                            {auction.status === 'ended' && (
+                            {auction.status === 'closed' && (
                                 <div
                                     style={{
                                         marginTop: '20px',
@@ -588,7 +841,7 @@ const BiddingDetail = () => {
                                 <Space align='center'>
                                     <UserOutlined />
                                     <Text strong>
-                                        {auction.seller?.username ||
+                                        {auction.Product?.User?.username ||
                                             'Người bán ẩn danh'}
                                     </Text>
                                 </Space>
@@ -715,10 +968,16 @@ const BiddingDetail = () => {
                                                         <UserOutlined />
                                                         <Text>
                                                             {bid.User
-                                                                .first_name +
-                                                                ' ' +
-                                                                bid.User
-                                                                    .last_name}
+                                                                ? `${
+                                                                      bid.User
+                                                                          .first_name ||
+                                                                      ''
+                                                                  } ${
+                                                                      bid.User
+                                                                          .last_name ||
+                                                                      ''
+                                                                  }`
+                                                                : 'Người dùng ẩn danh'}
                                                         </Text>
                                                         {index === 0 && (
                                                             <Tag color='green'>
@@ -784,7 +1043,12 @@ const BiddingDetail = () => {
                     <Button key='back' onClick={handleCancel}>
                         Hủy
                     </Button>,
-                    <Button key='submit' type='primary' onClick={handleBid}>
+                    <Button
+                        key='submit'
+                        type='primary'
+                        onClick={handleBid}
+                        loading={submitting}
+                    >
                         Xác nhận đặt giá
                     </Button>
                 ]}

@@ -10,6 +10,7 @@ import { ConfigProvider } from 'antd';
 import React, { useState, useEffect } from 'react';
 import NotFoundPage from './pages/public/NotFoundPage';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { isValidAdminToken } from './utils/tokenManager';
 import { userRoutes, protectedUserRoutes } from './routes/UserRoutes';
 import { adminLoginRoute, adminRoutes } from './routes/AdminRoutes';
@@ -40,82 +41,84 @@ function App() {
     return (
         <ConfigProvider>
             <AuthProvider>
-                <Router>
-                    <Routes>
-                        {/* User Routes */}
-                        <Route element={<UserLayout />}>
-                            {/* Public User Routes */}
-                            {userRoutes.map((route) => (
-                                <Route
-                                    key={route.path}
-                                    path={route.path}
-                                    element={route.element}
-                                />
-                            ))}
-
-                            {/* Protected User Routes - Sử dụng AuthContext */}
-                            <Route
-                                element={
-                                    <ProtectedRoute useAuthContext={true} />
-                                }
-                            >
-                                {protectedUserRoutes.map((route) => (
+                <SocketProvider>
+                    <Router>
+                        <Routes>
+                            {/* User Routes */}
+                            <Route element={<UserLayout />}>
+                                {/* Public User Routes */}
+                                {userRoutes.map((route) => (
                                     <Route
                                         key={route.path}
                                         path={route.path}
                                         element={route.element}
                                     />
                                 ))}
-                            </Route>
-                        </Route>
 
-                        {/* Admin Login Route */}
-                        <Route
-                            path={adminLoginRoute.path}
-                            element={
-                                <AdminLogin
-                                    setIsAdminAuthenticated={
-                                        setIsAdminAuthenticated
+                                {/* Protected User Routes - Sử dụng AuthContext */}
+                                <Route
+                                    element={
+                                        <ProtectedRoute useAuthContext={true} />
                                     }
-                                />
-                            }
-                        />
+                                >
+                                    {protectedUserRoutes.map((route) => (
+                                        <Route
+                                            key={route.path}
+                                            path={route.path}
+                                            element={route.element}
+                                        />
+                                    ))}
+                                </Route>
+                            </Route>
 
-                        {/* Protected Admin Routes - Không sử dụng AuthContext */}
-                        <Route
-                            element={
-                                <ProtectedRoute
-                                    isAuthenticated={isAdminAuthenticated}
-                                    redirectPath='/admin/login'
-                                    useAuthContext={false}
-                                    isAdmin={true}
-                                />
-                            }
-                        >
+                            {/* Admin Login Route */}
                             <Route
-                                path='/admin/*'
+                                path={adminLoginRoute.path}
                                 element={
-                                    <AdminLayout
+                                    <AdminLogin
                                         setIsAdminAuthenticated={
                                             setIsAdminAuthenticated
                                         }
                                     />
                                 }
-                            >
-                                {adminRoutes.map((route) => (
-                                    <Route
-                                        key={route.path}
-                                        path={route.path}
-                                        element={route.element}
-                                    />
-                                ))}
-                            </Route>
-                        </Route>
+                            />
 
-                        {/* 404 Page */}
-                        <Route path='*' element={<NotFoundPage />} />
-                    </Routes>
-                </Router>
+                            {/* Protected Admin Routes - Không sử dụng AuthContext */}
+                            <Route
+                                element={
+                                    <ProtectedRoute
+                                        isAuthenticated={isAdminAuthenticated}
+                                        redirectPath='/admin/login'
+                                        useAuthContext={false}
+                                        isAdmin={true}
+                                    />
+                                }
+                            >
+                                <Route
+                                    path='/admin/*'
+                                    element={
+                                        <AdminLayout
+                                            setIsAdminAuthenticated={
+                                                setIsAdminAuthenticated
+                                            }
+                                        />
+                                    }
+                                >
+                                    {adminRoutes.map((route) => (
+                                        <Route
+                                            key={route.path}
+                                            path={route.path}
+                                            element={route.element}
+                                        />
+                                    ))}
+                                </Route>
+                            </Route>
+
+                            {/* 404 Page */}
+                            <Route path='*' element={<NotFoundPage />} />
+                        </Routes>
+                    </Router>
+                </SocketProvider>
             </AuthProvider>
         </ConfigProvider>
     );
