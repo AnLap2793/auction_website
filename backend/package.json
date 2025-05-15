@@ -22,7 +22,8 @@
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "dev": "nodemon ./src/index.js",
-        "start": "nodemon ./src/server.js"
+        "start": "nodemon ./src/server.js",
+        "seed": "node -e \"require('./src/seeders/seedDatabase')()\""
     },
     "author": "",
     "license": "ISC",
