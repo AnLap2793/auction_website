@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Row,
     Col,
@@ -9,7 +9,8 @@ import {
     Tag,
     Statistic,
     Space,
-    Divider
+    Divider,
+    message
 } from 'antd';
 import {
     HeartOutlined,
@@ -18,55 +19,35 @@ import {
     TagOutlined
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
+import auctionService from '../services/auctionService';
 
 const { Title, Text } = Typography;
 const { Meta } = Card;
 const { Countdown } = Statistic;
 
 const FeaturedAuctions = () => {
-    // Mock data for auctions
-    const auctions = [
-        {
-            id: 1,
-            title: 'Vintage Rolex Submariner',
-            image: 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?q=80&w=1180',
-            currentBid: 7650,
-            bidCount: 24,
-            timeLeft: Date.now() + 1000 * 60 * 60 * 48, // 48 hours
-            category: 'Watches',
-            hot: true
-        },
-        {
-            id: 2,
-            title: 'Modern Abstract Art Painting',
-            image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?q=80&w=1145',
-            currentBid: 2300,
-            bidCount: 16,
-            timeLeft: Date.now() + 1000 * 60 * 60 * 24, // 24 hours
-            category: 'Art',
-            hot: false
-        },
-        {
-            id: 3,
-            title: 'Antique Mahogany Desk',
-            image: 'https://images.unsplash.com/photo-1519974719765-e6559eac2575?q=80&w=1170',
-            currentBid: 1250,
-            bidCount: 9,
-            timeLeft: Date.now() + 1000 * 60 * 60 * 72, // 72 hours
-            category: 'Furniture',
-            hot: false
-        },
-        {
-            id: 4,
-            title: 'Rare First Edition Book',
-            image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=1073',
-            currentBid: 5500,
-            bidCount: 31,
-            timeLeft: Date.now() + 1000 * 60 * 60 * 36, // 36 hours
-            category: 'Books',
-            hot: true
+    const [auctions, setAuctions] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        fetchFeaturedAuctions();
+    }, []);
+
+    const fetchFeaturedAuctions = async () => {
+        try {
+            setLoading(true);
+            const response = await auctionService.getAllAuctions({
+                limit: 4,
+                status: 'active',
+                sort: 'current_bid:desc'
+            });
+            setAuctions(response.data);
+        } catch (error) {
+            message.error('Không thể tải danh sách phiên đấu giá nổi bật');
+        } finally {
+            setLoading(false);
         }
-    ];
+    };
 
     return (
         <div
@@ -79,8 +60,8 @@ const FeaturedAuctions = () => {
             <div style={{ marginBottom: '40px', textAlign: 'center' }}>
                 <Title level={2}>Phiên đấu giá nổi bật</Title>
                 <Text type='secondary' style={{ fontSize: '16px' }}>
-                    Khám phá những mặt hàng đấu giá thú vị nhất hiện đang có sẵn
-                    để đấu giá
+                    Khám phá những phiên đấu giá có giá trị cao nhất hiện đang
+                    diễn ra
                 </Text>
             </div>
 
@@ -90,10 +71,16 @@ const FeaturedAuctions = () => {
                         <Badge.Ribbon
                             text='HOT'
                             color='red'
-                            style={{ display: auction.hot ? 'block' : 'none' }}
+                            style={{
+                                display:
+                                    auction.current_bid >= 5000
+                                        ? 'block'
+                                        : 'none'
+                            }}
                         >
                             <Card
                                 hoverable
+                                loading={loading}
                                 cover={
                                     <div
                                         style={{
@@ -103,25 +90,18 @@ const FeaturedAuctions = () => {
                                         }}
                                     >
                                         <img
-                                            alt={auction.title}
-                                            src={auction.image}
+                                            alt={auction.Product.title}
+                                            src={
+                                                auction.Product.ProductImages[0]
+                                                    ?.image_url ||
+                                                '/placeholder.png'
+                                            }
                                             style={{
                                                 width: '100%',
                                                 height: '100%',
                                                 objectFit: 'cover'
                                             }}
                                         />
-                                        <Link to={`/auction/${auction.id}`}>
-                                            <img
-                                                alt={auction.title}
-                                                src={auction.image}
-                                                style={{
-                                                    width: '100%',
-                                                    height: '100%',
-                                                    objectFit: 'cover'
-                                                }}
-                                            />
-                                        </Link>
                                         <div
                                             style={{
                                                 position: 'absolute',
@@ -133,7 +113,9 @@ const FeaturedAuctions = () => {
                                             }}
                                         >
                                             <Countdown
-                                                value={auction.timeLeft}
+                                                value={new Date(
+                                                    auction.end_time
+                                                ).getTime()}
                                                 format='D[d] H[h] m[m]'
                                                 valueStyle={{
                                                     color: '#fff',
@@ -155,16 +137,15 @@ const FeaturedAuctions = () => {
                                         type='text'
                                         icon={<HeartOutlined />}
                                     >
-                                        Watch
+                                        Theo dõi
                                     </Button>,
                                     <Link to={`/auction/${auction.id}`}>
                                         <Button
                                             type='primary'
                                             block
                                             size='medium'
-                                            style={{ marginRight: '10px' }}
                                         >
-                                            Bid Now
+                                            Đấu giá ngay
                                         </Button>
                                     </Link>
                                 ]}
@@ -172,7 +153,7 @@ const FeaturedAuctions = () => {
                                 <Meta
                                     title={
                                         <Link to={`/auction/${auction.id}`}>
-                                            {auction.title}
+                                            {auction.Product.title}
                                         </Link>
                                     }
                                     description={
@@ -186,14 +167,17 @@ const FeaturedAuctions = () => {
                                                     icon={<TagOutlined />}
                                                     color='blue'
                                                 >
-                                                    {auction.category}
+                                                    {auction.Product.Category
+                                                        ?.name ||
+                                                        'Chưa phân loại'}
                                                 </Tag>
-                                                {auction.hot && (
+                                                {auction.current_bid >=
+                                                    5000 && (
                                                     <Tag
                                                         icon={<FireOutlined />}
                                                         color='volcano'
                                                     >
-                                                        Popular
+                                                        Nổi bật
                                                     </Tag>
                                                 )}
                                             </div>
@@ -210,7 +194,7 @@ const FeaturedAuctions = () => {
                                             >
                                                 <div>
                                                     <Text type='secondary'>
-                                                        Current Bid
+                                                        Giá hiện tại
                                                     </Text>
                                                     <div>
                                                         <Text
@@ -219,8 +203,13 @@ const FeaturedAuctions = () => {
                                                                 fontSize: '16px'
                                                             }}
                                                         >
-                                                            $
-                                                            {auction.currentBid.toLocaleString()}
+                                                            {Number(
+                                                                auction.current_bid ||
+                                                                    auction
+                                                                        .Product
+                                                                        .starting_price
+                                                            ).toLocaleString()}{' '}
+                                                            VNĐ
                                                         </Text>
                                                     </div>
                                                 </div>
@@ -230,11 +219,14 @@ const FeaturedAuctions = () => {
                                                     }}
                                                 >
                                                     <Text type='secondary'>
-                                                        Bids
+                                                        Bước giá
                                                     </Text>
                                                     <div>
                                                         <Text>
-                                                            {auction.bidCount}
+                                                            {Number(
+                                                                auction.bid_increment
+                                                            ).toLocaleString()}{' '}
+                                                            VNĐ
                                                         </Text>
                                                     </div>
                                                 </div>
@@ -249,9 +241,11 @@ const FeaturedAuctions = () => {
             </Row>
 
             <div style={{ textAlign: 'center', marginTop: '40px' }}>
-                <Button type='primary' size='large'>
-                    Xem tất cả
-                </Button>
+                <Link to='/auctions'>
+                    <Button type='primary' size='large'>
+                        Xem tất cả
+                    </Button>
+                </Link>
             </div>
         </div>
     );

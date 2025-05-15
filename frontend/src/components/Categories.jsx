@@ -1,5 +1,5 @@
-import React from 'react';
-import { Row, Col, Card, Typography, Button } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Row, Col, Card, Typography, Button, Spin, message } from 'antd';
 import {
     ClockCircleOutlined,
     CarOutlined,
@@ -11,76 +11,71 @@ import {
     TrophyOutlined
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
+import { getAllCategories } from '../services/categoryService';
 
 const { Title, Text } = Typography;
 
+// Map icon component based on category name
+const getIconComponent = (categoryName) => {
+    const iconMap = {
+        'Đồng Hồ & Trang Sức': ClockCircleOutlined,
+        'Phương Tiện': CarOutlined,
+        'Bất Động Sản': HomeOutlined,
+        'Đồ Sưu Tầm': GiftOutlined,
+        'Hàng Cao Cấp': CrownOutlined,
+        'Nghệ Thuật': BulbOutlined,
+        'Điện Tử': CameraOutlined,
+        'Kỷ Vật Thể Thao': TrophyOutlined
+    };
+
+    const IconComponent = iconMap[categoryName] || GiftOutlined;
+    return <IconComponent style={{ fontSize: '32px' }} />;
+};
+
 const Categories = () => {
-    const categories = [
-        {
-            id: 1,
-            title: 'Watches & Jewelry',
-            icon: <ClockCircleOutlined style={{ fontSize: '32px' }} />,
-            color: '#1890ff',
-            itemCount: 158
-        },
-        {
-            id: 2,
-            title: 'Vehicles',
-            icon: <CarOutlined style={{ fontSize: '32px' }} />,
-            color: '#722ed1',
-            itemCount: 67
-        },
-        {
-            id: 3,
-            title: 'Real Estate',
-            icon: <HomeOutlined style={{ fontSize: '32px' }} />,
-            color: '#eb2f96',
-            itemCount: 43
-        },
-        {
-            id: 4,
-            title: 'Collectibles',
-            icon: <GiftOutlined style={{ fontSize: '32px' }} />,
-            color: '#fa8c16',
-            itemCount: 210
-        },
-        {
-            id: 5,
-            title: 'Luxury Items',
-            icon: <CrownOutlined style={{ fontSize: '32px' }} />,
-            color: '#faad14',
-            itemCount: 89
-        },
-        {
-            id: 6,
-            title: 'Art',
-            icon: <BulbOutlined style={{ fontSize: '32px' }} />,
-            color: '#a0d911',
-            itemCount: 126
-        },
-        {
-            id: 7,
-            title: 'Electronics',
-            icon: <CameraOutlined style={{ fontSize: '32px' }} />,
-            color: '#13c2c2',
-            itemCount: 175
-        },
-        {
-            id: 8,
-            title: 'Sports Memorabilia',
-            icon: <TrophyOutlined style={{ fontSize: '32px' }} />,
-            color: '#cf1322',
-            itemCount: 82
-        }
-    ];
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const response = await getAllCategories();
+                if (response.success) {
+                    const categoriesWithUI = response.data.map((category) => ({
+                        ...category,
+                        icon: getIconComponent(category.name),
+                        color: '#1890ff'
+                    }));
+                    setCategories(categoriesWithUI);
+                } else {
+                    message.error('Không thể tải danh mục');
+                }
+            } catch (error) {
+                console.error('Lỗi khi tải danh mục:', error);
+                message.error('Đã xảy ra lỗi khi tải danh mục');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCategories();
+    }, []);
+
+    if (loading) {
+        return (
+            <div style={{ textAlign: 'center', padding: '50px' }}>
+                <Spin size='large' tip='Đang tải...' />
+            </div>
+        );
+    }
 
     return (
         <div style={{ padding: '60px 20px', backgroundColor: '#f7f7f7' }}>
             <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
                 <div style={{ marginBottom: '40px', textAlign: 'center' }}>
-                    <Title level={2}>Browse By Category</Title>
+                    <Title level={2}>Danh Mục Sản Phẩm</Title>
                     <Text type='secondary' style={{ fontSize: '16px' }}>
-                        Explore our wide range of auction categories
+                        Khám phá các danh mục đấu giá đa dạng của chúng tôi
                     </Text>
                 </div>
 
@@ -115,10 +110,10 @@ const Categories = () => {
                                             marginBottom: '5px'
                                         }}
                                     >
-                                        {category.title}
+                                        {category.name}
                                     </Title>
                                     <Text type='secondary'>
-                                        {category.itemCount} items
+                                        {category.itemCount || 0} sản phẩm
                                     </Text>
                                 </Card>
                             </Link>
@@ -128,7 +123,7 @@ const Categories = () => {
 
                 <div style={{ textAlign: 'center', marginTop: '40px' }}>
                     <Button type='default' size='large'>
-                        View All Categories
+                        Xem Tất Cả Danh Mục
                     </Button>
                 </div>
             </div>

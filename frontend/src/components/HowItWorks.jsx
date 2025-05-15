@@ -13,27 +13,27 @@ const { Title, Paragraph } = Typography;
 const HowItWorks = () => {
     const steps = [
         {
-            title: 'Create an Account',
+            title: 'Tạo Tài Khoản',
             description:
-                'Sign up and complete verification to start bidding on items',
+                'Đăng ký và hoàn tất xác minh để bắt đầu đấu giá sản phẩm',
             icon: <UserAddOutlined />
         },
         {
-            title: 'Find Items',
+            title: 'Tìm Sản Phẩm',
             description:
-                "Browse categories or search for specific items you're interested in",
+                'Duyệt qua danh mục hoặc tìm kiếm những sản phẩm bạn quan tâm',
             icon: <SearchOutlined />
         },
         {
-            title: 'Place Bids',
+            title: 'Đặt Giá',
             description:
-                'Set your maximum bid and let our system bid incrementally for you',
+                'Đặt giá tối đa và để hệ thống của chúng tôi tự động đấu giá theo từng bước',
             icon: <DollarCircleOutlined />
         },
         {
-            title: 'Win & Collect',
+            title: 'Thắng & Nhận Hàng',
             description:
-                'If you win, complete payment and arrange delivery or pickup',
+                'Nếu thắng, hoàn tất thanh toán và sắp xếp giao hàng hoặc nhận tại chỗ',
             icon: <TrophyOutlined />
         }
     ];
@@ -47,7 +47,7 @@ const HowItWorks = () => {
             }}
         >
             <div style={{ marginBottom: '40px', textAlign: 'center' }}>
-                <Title level={2}>How It Works</Title>
+                <Title level={2}>Hướng Dẫn Sử Dụng</Title>
                 <Paragraph
                     style={{
                         fontSize: '16px',
@@ -55,8 +55,9 @@ const HowItWorks = () => {
                         margin: '0 auto'
                     }}
                 >
-                    AuctionMaster makes online bidding simple and secure. Follow
-                    these easy steps to start winning amazing items.
+                    AuctionMaster giúp đấu giá trực tuyến đơn giản và an toàn.
+                    Làm theo các bước sau để bắt đầu thắng được những sản phẩm
+                    tuyệt vời.
                 </Paragraph>
             </div>
 
@@ -125,7 +126,7 @@ const HowItWorks = () => {
 
             <div style={{ textAlign: 'center', marginTop: '40px' }}>
                 <Button type='primary' size='large' icon={<RightOutlined />}>
-                    Learn More About Our Process
+                    Tìm Hiểu Thêm Về Quy Trình
                 </Button>
             </div>
         </div>
