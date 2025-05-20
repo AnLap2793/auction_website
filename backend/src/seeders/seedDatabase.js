@@ -356,7 +356,7 @@ const seedDatabase = async () => {
       auction_id: closedAuction1.id,
       amount: 16000000,
       status: 'completed',
-      payment_method: 'bank_transfer',
+      payment_method: 'VNPAY',
       transaction_code: 'TRX' + Date.now()
     });
 
@@ -365,7 +365,7 @@ const seedDatabase = async () => {
       auction_id: closedAuction2.id,
       amount: 3000000,
       status: 'pending',
-      payment_method: 'bank_transfer',
+      payment_method: 'VNPAY',
       transaction_code: 'TRX' + Date.now() + '1'
     });
 

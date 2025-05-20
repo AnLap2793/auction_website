@@ -20,7 +20,8 @@ import {
     Tag,
     Spin,
     Empty,
-    Table
+    Table,
+    Modal
 } from 'antd';
 import {
     UserOutlined,
@@ -40,6 +41,7 @@ import {
 import { updateUser, getUserBidStats } from '../../services/apiUser';
 import auctionService from '../../services/auctionService';
 import transactionService from '../../services/transactionService';
+import paymentService from '../../services/paymentService';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -242,7 +244,27 @@ const MyProfile = () => {
         return <Tag color={color}>{status}</Tag>;
     };
 
-    // Cấu hình các cột cho bảng hóa đơn
+    // Thêm hàm xử lý thanh toán
+    const handlePayment = async (transaction) => {
+        try {
+            // Chuyển đến trang xác nhận thanh toán với thông tin transaction
+            navigate(`/payment-confirm`, {
+                state: {
+                    transaction: {
+                        id: transaction.id,
+                        amount: transaction.amount,
+                        transactionCode: transaction.transactionCode,
+                        productTitle: transaction.productTitle
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Lỗi khi xử lý thanh toán:', error);
+            message.error('Có lỗi xảy ra khi xử lý thanh toán');
+        }
+    };
+
+    // Cập nhật cấu hình cột cho bảng hóa đơn
     const transactionColumns = [
         {
             title: 'Mã hóa đơn',
@@ -295,6 +317,25 @@ const MyProfile = () => {
                         {getPaymentStatus(status)}
                     </Tag>
                 );
+            }
+        },
+        {
+            title: 'Thao tác',
+            key: 'action',
+            render: (_, record) => {
+                // Chỉ hiển thị nút thanh toán cho các giao dịch có trạng thái pending
+                if (record.status === 'pending') {
+                    return (
+                        <Button
+                            type='primary'
+                            icon={<DollarOutlined />}
+                            onClick={() => handlePayment(record)}
+                        >
+                            Thanh toán
+                        </Button>
+                    );
+                }
+                return null;
             }
         }
     ];

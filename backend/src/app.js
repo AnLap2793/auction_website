@@ -42,7 +42,7 @@ app.use('/api/images', require('./routes/imageRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/auctions', require('./routes/auctionRoutes'));
 app.use('/api/transactions', require('./routes/transactionRoutes'));
-
+app.use('/api/payments', require('./routes/paymentRoutes'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

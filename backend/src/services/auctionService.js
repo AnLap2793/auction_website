@@ -8,6 +8,7 @@ const AuctionWinner = require('../models/AuctionWinner');
 const { Op, Sequelize } = require('sequelize');
 const Category = require('../models/Category');
 const Transaction = require('../models/Transaction');
+const { v4: uuidv4 } = require('uuid');
 
 // Lấy tất cả các phiên đấu giá
 const getAllAuctions = async (filters = {}) => {
@@ -378,6 +379,8 @@ const updateAuctionStatus = async () => {
           amount: auction.current_bid,
           status: 'pending',
           transaction_type: 'auction_win',
+          transaction_code: uuidv4(),
+          payment_method: 'VNPAY',
           created_at: now
         });
       }

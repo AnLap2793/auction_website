@@ -13,6 +13,8 @@ import EmailVerificationPage from '../pages/public/EmailVerificationPage';
 import ResendVerificationPage from '../pages/public/ResendVerificationPage';
 import ForgotPassword from '../components/auth/ForgotPassword';
 import ResetPassword from '../components/auth/ResetPassword';
+import PaymentResult from '../pages/user/PaymentResult';
+import PaymentConfirm from '../pages/user/PaymentConfirm';
 
 // Các routes của user
 const userRoutes = [
@@ -28,14 +30,16 @@ const userRoutes = [
     { path: '/verify-email/:token', element: <EmailVerificationPage /> },
     { path: '/resend-verification', element: <ResendVerificationPage /> },
     { path: '/forgot-password', element: <ForgotPassword /> },
-    { path: '/reset-password', element: <ResetPassword /> }
+    { path: '/reset-password', element: <ResetPassword /> },
+    { path: '/payment-result', element: <PaymentResult /> }
 ];
 
 // Protected Routes của user
 const protectedUserRoutes = [
     { path: '/profile', element: <MyProfile /> },
     { path: '/my-auctions', element: <MyAuctions /> },
-    { path: '/auctions/:id', element: <BiddingDetail /> }
+    { path: '/auctions/:id', element: <BiddingDetail /> },
+    { path: '/payment-confirm', element: <PaymentConfirm /> }
 ];
 
 export { userRoutes, protectedUserRoutes };
