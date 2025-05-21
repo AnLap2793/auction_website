@@ -161,27 +161,27 @@ const seedDatabase = async () => {
       {
         id: uuidv4(),
         product_id: products[0].id,
-        image_url: 'https://example.com/images/iphone13-1.jpg'
+        image_url: 'https://res.cloudinary.com/dzapyb23p/image/upload/v1747730409/auction_website/products/rgdhgpf418wkp8zbsbbd.jpg'
       },
       {
         id: uuidv4(),
         product_id: products[1].id,
-        image_url: 'https://example.com/images/jacket-1.jpg'
+        image_url: 'https://res.cloudinary.com/dzapyb23p/image/upload/v1747731256/auction_website/products/clj0bpbg00eleyphyloe.jpg'
       },
       {
         id: uuidv4(),
         product_id: products[2].id,
-        image_url: 'https://example.com/images/sofa-1.jpg'
+        image_url: 'https://res.cloudinary.com/dzapyb23p/image/upload/v1747730410/auction_website/products/wldom6fxkq9qnwfvoco3.jpg'
       },
       {
         id: uuidv4(),
         product_id: products[3].id,
-        image_url: 'https://example.com/images/wave-1.jpg'
+        image_url: 'https://res.cloudinary.com/dzapyb23p/image/upload/v1747730410/auction_website/products/y7g2evo5vesjopxjyxo3.jpg'
       },
       {
         id: uuidv4(),
         product_id: products[4].id,
-        image_url: 'https://example.com/images/antique-1.jpg'
+        image_url: 'https://res.cloudinary.com/dzapyb23p/image/upload/v1747730410/auction_website/products/scaj1a5uvhtzt40btxrk.jpg'
       }
     ]);
 

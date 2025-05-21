@@ -122,7 +122,7 @@ const Categories = () => {
                 </Row>
 
                 <div style={{ textAlign: 'center', marginTop: '40px' }}>
-                    <Button type='default' size='large'>
+                    <Button type='primary' size='large'>
                         Xem Tất Cả Danh Mục
                     </Button>
                 </div>

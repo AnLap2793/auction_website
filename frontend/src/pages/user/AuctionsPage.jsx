@@ -348,6 +348,17 @@ const Auctions = () => {
                                     <Card
                                         loading={loading}
                                         hoverable
+                                        style={{
+                                            height: '100%',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            flex: 1
+                                        }}
+                                        bodyStyle={{
+                                            flex: 1,
+                                            display: 'flex',
+                                            flexDirection: 'column'
+                                        }}
                                         cover={
                                             <div
                                                 style={{
@@ -458,6 +469,10 @@ const Auctions = () => {
                                                                 <TagOutlined />
                                                             }
                                                             color='blue'
+                                                            style={{
+                                                                marginBottom:
+                                                                    '12px'
+                                                            }}
                                                         >
                                                             {(() => {
                                                                 const productCategoryId =
@@ -482,7 +497,8 @@ const Auctions = () => {
                                                     <Paragraph
                                                         ellipsis={{ rows: 2 }}
                                                         style={{
-                                                            marginTop: '8px'
+                                                            margin: '12px 0',
+                                                            minHeight: '42px'
                                                         }}
                                                     >
                                                         {
@@ -492,7 +508,7 @@ const Auctions = () => {
                                                     </Paragraph>
                                                     <Divider
                                                         style={{
-                                                            margin: '8px 0'
+                                                            margin: '12px 0'
                                                         }}
                                                     />
                                                     <div
@@ -500,7 +516,9 @@ const Auctions = () => {
                                                             display: 'flex',
                                                             justifyContent:
                                                                 'space-between',
-                                                            alignItems: 'center'
+                                                            alignItems:
+                                                                'center',
+                                                            marginTop: '12px'
                                                         }}
                                                     >
                                                         <div>

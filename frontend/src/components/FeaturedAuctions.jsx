@@ -16,10 +16,12 @@ import {
     HeartOutlined,
     FireOutlined,
     ClockCircleOutlined,
-    TagOutlined
+    TagOutlined,
+    DollarOutlined
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import auctionService from '../services/auctionService';
+import { getAllCategories } from '../services/categoryService';
 
 const { Title, Text } = Typography;
 const { Meta } = Card;
@@ -28,10 +30,27 @@ const { Countdown } = Statistic;
 const FeaturedAuctions = () => {
     const [auctions, setAuctions] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [categories, setCategories] = useState([]);
 
     useEffect(() => {
         fetchFeaturedAuctions();
+        fetchCategories();
     }, []);
+
+    const fetchCategories = async () => {
+        try {
+            const response = await getAllCategories();
+            if (response.success) {
+                setCategories(response.data);
+            }
+        } catch (error) {
+            console.error('Lỗi khi tải danh mục:', error);
+        }
+    };
+
+    const getCategoryColor = (categoryId) => {
+        return '#1890ff'; // Màu xanh mặc định cho tất cả danh mục
+    };
 
     const fetchFeaturedAuctions = async () => {
         try {
@@ -72,10 +91,7 @@ const FeaturedAuctions = () => {
                             text='HOT'
                             color='red'
                             style={{
-                                display:
-                                    auction.current_bid >= 5000
-                                        ? 'block'
-                                        : 'none'
+                                display: 'block'
                             }}
                         >
                             <Card
@@ -133,19 +149,18 @@ const FeaturedAuctions = () => {
                                     </div>
                                 }
                                 actions={[
-                                    <Button
-                                        type='text'
-                                        icon={<HeartOutlined />}
+                                    <Link
+                                        to={`/auctions/${auction.id}`}
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'center'
+                                        }}
                                     >
-                                        Theo dõi
-                                    </Button>,
-                                    <Link to={`/auction/${auction.id}`}>
                                         <Button
                                             type='primary'
-                                            block
-                                            size='medium'
+                                            icon={<DollarOutlined />}
                                         >
-                                            Đấu giá ngay
+                                            Đấu giá
                                         </Button>
                                     </Link>
                                 ]}
@@ -164,22 +179,26 @@ const FeaturedAuctions = () => {
                                         >
                                             <div>
                                                 <Tag
-                                                    icon={<TagOutlined />}
-                                                    color='blue'
+                                                    icon={
+                                                        <TagOutlined
+                                                            style={{
+                                                                color: '#1890ff'
+                                                            }}
+                                                        />
+                                                    }
+                                                    style={{
+                                                        color: '#1890ff',
+                                                        background: '#fff',
+                                                        borderColor: '#1890ff'
+                                                    }}
                                                 >
-                                                    {auction.Product.Category
-                                                        ?.name ||
-                                                        'Chưa phân loại'}
+                                                    {categories.find(
+                                                        (cat) =>
+                                                            cat.id ===
+                                                            auction.Product
+                                                                .category_id
+                                                    )?.name || 'Chưa phân loại'}
                                                 </Tag>
-                                                {auction.current_bid >=
-                                                    5000 && (
-                                                    <Tag
-                                                        icon={<FireOutlined />}
-                                                        color='volcano'
-                                                    >
-                                                        Nổi bật
-                                                    </Tag>
-                                                )}
                                             </div>
                                             <Divider
                                                 style={{ margin: '8px 0' }}

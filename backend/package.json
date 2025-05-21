@@ -18,19 +18,21 @@
         "uuid": "^11.1.0",
         "vnpay": "^2.2.0"
     },
-    "name": "backend",
+    "name": "auction-website-backend",
     "version": "1.0.0",
-    "main": "index.js",
+    "main": "src/server.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "dev": "nodemon ./src/index.js",
-        "start": "nodemon ./src/server.js",
+        "test": "mocha tests/**/*.test.js --timeout 10000",
+        "dev": "nodemon src/server.js",
+        "start": "node src/server.js",
         "seed": "node -e \"require('./src/seeders/seedDatabase')()\""
     },
     "author": "",
     "license": "ISC",
-    "description": "",
+    "description": "Backend for auction website",
     "devDependencies": {
-        "nodemon": "^3.1.9"
+        "mocha": "^10.2.0",
+        "nodemon": "^2.0.22",
+        "socket.io-client": "^4.6.1"
     }
 }
