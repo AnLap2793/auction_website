@@ -2,8 +2,9 @@ require('dotenv').config();
 const app = require('./app');
 const http = require('http');
 const { Server } = require('socket.io');
+const socketService = require('./services/socketService');
 
-const port = process.env.PORT || 5000;
+const port = process.env.PORT;
 
 // Tạo HTTP server
 const server = http.createServer(app);
@@ -18,8 +19,11 @@ const io = new Server(server, {
   }
 });
 
+// Khởi tạo Socket.IO service
+socketService.init(io);
+
 // In thông báo khi Socket.IO server khởi động
-//console.log(`Socket.IO server được cấu hình với CORS origin: ${process.env.FRONTEND_URL || "http://localhost:5173"}`);
+console.log(`Socket.IO server được cấu hình với CORS origin: ${process.env.FRONTEND_URL || "http://localhost:5173"}`);
 
 // Socket.IO events
 io.on('connection', (socket) => {
@@ -59,5 +63,5 @@ server.listen(port, () => {
     console.log(`Server đang chạy trên cổng ${port}`);
 });
 
-// Xuất app và io để có thể sử dụng trong các module khác
-module.exports = { app, io };
+// Xuất app để có thể sử dụng trong testing
+module.exports = app;
