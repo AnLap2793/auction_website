@@ -16,8 +16,7 @@ export const SocketProvider = ({ children }) => {
 
     useEffect(() => {
         // Khởi tạo kết nối socket (sử dụng URL không có đường dẫn /api)
-        const socketUrl =
-            import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+        const socketUrl = import.meta.env.VITE_SOCKET_URL;
         console.log('Đang kết nối Socket.IO đến:', socketUrl);
 
         const newSocket = io(socketUrl, {

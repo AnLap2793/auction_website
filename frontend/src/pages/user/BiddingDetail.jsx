@@ -18,7 +18,8 @@ import {
     message,
     Spin,
     List,
-    Empty
+    Empty,
+    InputNumber
 } from 'antd';
 import {
     ClockCircleOutlined,
@@ -52,6 +53,7 @@ const BiddingDetail = () => {
     const [timeLeft, setTimeLeft] = useState('');
     const [countdown, setCountdown] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const [depositModalVisible, setDepositModalVisible] = useState(false);
 
     useEffect(() => {
         fetchAuctionDetails();
@@ -374,7 +376,7 @@ const BiddingDetail = () => {
 
                 // Tải lại thông tin phiên đấu giá và lịch sử đấu giá
                 // fetchAuctionDetails();
-                // fetchCategories();
+                //fetchCategories();
             } else {
                 message.error(response.message || 'Đặt giá thất bại');
             }
@@ -397,15 +399,36 @@ const BiddingDetail = () => {
             return;
         }
 
+        // Hiển thị modal nhập số tiền đặt cọc
+        setDepositModalVisible(true);
+    };
+
+    const handleDepositSubmit = async () => {
+        // Tính toán số tiền đặt cọc là 10% giá khởi điểm
+        const startingPrice =
+            auction?.Product?.starting_price || auction?.starting_price;
+        const depositAmount = startingPrice * 0.1;
+
+        if (!depositAmount || depositAmount <= 0) {
+            message.error('Không thể tính toán số tiền đặt cọc');
+            return;
+        }
+
         try {
             setLoadingRegistration(true);
-            const response = await auctionService.registerForAuction(id);
+            const response = await auctionService.registerForAuction(
+                id,
+                depositAmount
+            );
 
             if (response.success) {
                 message.success('Đăng ký tham gia đấu giá thành công!');
+                setDepositModalVisible(false);
                 // Cập nhật trạng thái đăng ký
                 setRegistrationStatus('pending');
-                message.info('Đăng ký của bạn đang chờ phê duyệt từ người bán');
+                message.info(
+                    'Vui lòng thanh toán tiền đặt cọc để hoàn tất đăng ký'
+                );
             } else {
                 message.error(
                     response.message || 'Đăng ký tham gia đấu giá thất bại'
@@ -426,16 +449,27 @@ const BiddingDetail = () => {
         if (!user) return '';
         if (!registrationStatus) return '';
 
+        let statusText = '';
         switch (registrationStatus) {
             case 'pending':
-                return 'Đang chờ phê duyệt';
+                statusText = 'Đang chờ phê duyệt';
+                break;
             case 'approved':
-                return 'Đã được phê duyệt';
+                statusText = 'Đã được phê duyệt';
+                break;
             case 'rejected':
-                return 'Đã bị từ chối';
+                statusText = 'Đã bị từ chối';
+                break;
             default:
-                return registrationStatus;
+                statusText = registrationStatus;
         }
+
+        // Thêm thông tin về trạng thái đặt cọc
+        if (registrationStatus === 'pending') {
+            statusText += ' - Chờ thanh toán tiền đặt cọc';
+        }
+
+        return statusText;
     };
 
     const getRegistrationStatusTag = () => {
@@ -1070,6 +1104,51 @@ const BiddingDetail = () => {
                     Lưu ý: Giá đặt có hiệu lực ràng buộc và không thể rút lại
                     sau khi đã đặt.
                 </p>
+            </Modal>
+
+            {/* Deposit Modal */}
+            <Modal
+                title='Xác nhận đặt cọc tham gia đấu giá'
+                visible={depositModalVisible}
+                onOk={handleDepositSubmit}
+                onCancel={() => setDepositModalVisible(false)}
+                confirmLoading={loadingRegistration}
+            >
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <Typography.Title level={4}>
+                        Số tiền đặt cọc cần thanh toán:
+                    </Typography.Title>
+                    <Typography.Title level={2} type='danger'>
+                        {(() => {
+                            const startingPrice =
+                                auction?.Product?.starting_price ||
+                                auction?.starting_price;
+                            const depositAmount = startingPrice * 0.1;
+                            return depositAmount
+                                ? `${depositAmount.toLocaleString('vi-VN')} VNĐ`
+                                : '0 VNĐ';
+                        })()}
+                    </Typography.Title>
+                    <Typography.Text type='secondary'>
+                        (10% giá khởi điểm:{' '}
+                        {(() => {
+                            const startingPrice =
+                                auction?.Product?.starting_price ||
+                                auction?.starting_price;
+                            return startingPrice
+                                ? `${Number(startingPrice).toLocaleString(
+                                      'vi-VN'
+                                  )} VNĐ`
+                                : '0 VNĐ';
+                        })()}
+                        )
+                    </Typography.Text>
+                    <div style={{ marginTop: '20px' }}>
+                        <Typography.Text>
+                            Bạn có xác nhận đặt cọc để tham gia đấu giá không?
+                        </Typography.Text>
+                    </div>
+                </div>
             </Modal>
         </div>
     );

@@ -361,7 +361,7 @@ const MyAuctions = () => {
         productForm.resetFields();
     };
 
-    // Hàm hiển thị modal danh sách đăng ký đấu giá
+    // Hàm hiển thị modal danh sách đăng ký
     const showRegistrationsModal = async (auctionId) => {
         setCurrentAuctionId(auctionId);
         setLoadingRegistrations(true);
@@ -475,6 +475,68 @@ const MyAuctions = () => {
             message.destroy();
             console.error('Lỗi khi hủy duyệt đăng ký:', error);
             message.error('Không thể hủy duyệt đăng ký: ' + error.message);
+        }
+    };
+
+    // Hàm xử lý xác nhận thanh toán đặt cọc
+    const handleConfirmDeposit = async (registrationId) => {
+        try {
+            message.loading('Đang xử lý...', 0);
+            await auctionService.updateDepositStatus(
+                currentAuctionId,
+                registrationId,
+                'paid'
+            );
+            message.destroy();
+            message.success('Đã xác nhận thanh toán đặt cọc thành công');
+
+            // Cập nhật lại danh sách đăng ký
+            const updatedRegistrations = auctionRegistrations.map((reg) => {
+                if (reg.id === registrationId) {
+                    return {
+                        ...reg,
+                        deposit_status: 'paid',
+                        status: 'approved' // Tự động approve khi đã thanh toán đặt cọc
+                    };
+                }
+                return reg;
+            });
+            setAuctionRegistrations(updatedRegistrations);
+        } catch (error) {
+            message.destroy();
+            console.error('Lỗi khi xác nhận thanh toán đặt cọc:', error);
+            message.error(
+                'Không thể xác nhận thanh toán đặt cọc: ' + error.message
+            );
+        }
+    };
+
+    // Hàm xử lý hoàn trả tiền đặt cọc
+    const handleRefundDeposit = async (registrationId) => {
+        try {
+            message.loading('Đang xử lý...', 0);
+            await auctionService.updateDepositStatus(
+                currentAuctionId,
+                registrationId,
+                'refunded'
+            );
+            message.destroy();
+            message.success('Đã xác nhận hoàn trả tiền đặt cọc thành công');
+
+            // Cập nhật lại danh sách đăng ký
+            const updatedRegistrations = auctionRegistrations.map((reg) => {
+                if (reg.id === registrationId) {
+                    return { ...reg, deposit_status: 'refunded' };
+                }
+                return reg;
+            });
+            setAuctionRegistrations(updatedRegistrations);
+        } catch (error) {
+            message.destroy();
+            console.error('Lỗi khi xác nhận hoàn trả tiền đặt cọc:', error);
+            message.error(
+                'Không thể xác nhận hoàn trả tiền đặt cọc: ' + error.message
+            );
         }
     };
 
@@ -1638,65 +1700,86 @@ const MyAuctions = () => {
                                 pagination={{ pageSize: 10 }}
                             >
                                 <Table.Column
-                                    title='Người dùng'
-                                    key='user'
-                                    render={(record) => (
-                                        <div>
-                                            <Text strong>
-                                                {record.user.first_name}{' '}
-                                                {record.user.last_name}
-                                            </Text>
-                                            <br />
-                                            <Text type='secondary'>
-                                                {record.user.email}
-                                            </Text>
-                                        </div>
-                                    )}
+                                    title='Người Đăng Ký'
+                                    dataIndex={['user', 'email']}
+                                    key='email'
                                 />
                                 <Table.Column
-                                    title='Ngày đăng ký'
+                                    title='Ngày Đăng Ký'
                                     dataIndex='registration_date'
                                     key='registration_date'
                                     render={(date) =>
-                                        new Date(date).toLocaleDateString(
-                                            'vi-VN',
-                                            {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            }
-                                        )
+                                        new Date(date).toLocaleString('vi-VN')
                                     }
                                 />
                                 <Table.Column
-                                    title='Trạng thái'
-                                    dataIndex='status'
-                                    key='status'
+                                    title='Số Tiền Đặt Cọc'
+                                    dataIndex='deposit_amount'
+                                    key='deposit_amount'
+                                    render={(amount) =>
+                                        `${Number(amount).toLocaleString(
+                                            'vi-VN'
+                                        )} VNĐ`
+                                    }
+                                />
+                                <Table.Column
+                                    title='Trạng Thái Đặt Cọc'
+                                    dataIndex='deposit_status'
+                                    key='deposit_status'
                                     render={(status) => {
                                         let color = 'default';
-                                        let text = 'Không xác định';
-
-                                        if (status === 'pending') {
-                                            color = 'warning';
-                                            text = 'Chờ duyệt';
-                                        } else if (status === 'approved') {
-                                            color = 'success';
-                                            text = 'Đã duyệt';
-                                        } else if (status === 'rejected') {
-                                            color = 'error';
-                                            text = 'Từ chối';
+                                        let text = 'Chưa đặt cọc';
+                                        switch (status) {
+                                            case 'paid':
+                                                color = 'success';
+                                                text = 'Đã thanh toán';
+                                                break;
+                                            case 'pending':
+                                                color = 'warning';
+                                                text = 'Chờ thanh toán';
+                                                break;
+                                            case 'refunded':
+                                                color = 'default';
+                                                text = 'Đã hoàn trả';
+                                                break;
+                                            default:
+                                                break;
                                         }
-
                                         return <Tag color={color}>{text}</Tag>;
                                     }}
                                 />
                                 <Table.Column
-                                    title='Thao tác'
+                                    title='Trạng Thái'
+                                    dataIndex='status'
+                                    key='status'
+                                    render={(status) => {
+                                        let color = 'default';
+                                        let text = status;
+                                        switch (status) {
+                                            case 'approved':
+                                                color = 'success';
+                                                text = 'Đã duyệt';
+                                                break;
+                                            case 'pending':
+                                                color = 'warning';
+                                                text = 'Chờ duyệt';
+                                                break;
+                                            case 'rejected':
+                                                color = 'error';
+                                                text = 'Từ chối';
+                                                break;
+                                            default:
+                                                break;
+                                        }
+                                        return <Tag color={color}>{text}</Tag>;
+                                    }}
+                                />
+                                <Table.Column
+                                    title='Thao Tác'
                                     key='actions'
-                                    render={(record) => (
+                                    render={(_, record) => (
                                         <Space>
+                                            {/* Các nút xử lý đăng ký */}
                                             {record.status === 'pending' && (
                                                 <>
                                                     <Button
@@ -1726,7 +1809,6 @@ const MyAuctions = () => {
                                             {record.status === 'approved' && (
                                                 <Button
                                                     size='small'
-                                                    danger
                                                     onClick={() =>
                                                         handleCancelApproval(
                                                             record.id
@@ -1736,17 +1818,33 @@ const MyAuctions = () => {
                                                     Hủy duyệt
                                                 </Button>
                                             )}
-                                            {record.status === 'rejected' && (
+
+                                            {/* Các nút xử lý đặt cọc */}
+                                            {record.deposit_status ===
+                                                'pending' && (
                                                 <Button
                                                     size='small'
                                                     type='primary'
                                                     onClick={() =>
-                                                        handleApproveRegistration(
+                                                        handleConfirmDeposit(
                                                             record.id
                                                         )
                                                     }
                                                 >
-                                                    Duyệt lại
+                                                    Xác nhận đặt cọc
+                                                </Button>
+                                            )}
+                                            {record.deposit_status ===
+                                                'paid' && (
+                                                <Button
+                                                    size='small'
+                                                    onClick={() =>
+                                                        handleRefundDeposit(
+                                                            record.id
+                                                        )
+                                                    }
+                                                >
+                                                    Hoàn trả đặt cọc
                                                 </Button>
                                             )}
                                         </Space>
@@ -1754,7 +1852,7 @@ const MyAuctions = () => {
                                 />
                             </Table>
                         ) : (
-                            <Empty description='Không có người đăng ký nào cho phiên đấu giá này' />
+                            <Empty description='Chưa có người đăng ký tham gia' />
                         )}
                     </>
                 )}

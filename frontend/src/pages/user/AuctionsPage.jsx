@@ -193,9 +193,15 @@ const Auctions = () => {
 
     const handleRegistrationSubmit = async () => {
         try {
-            const values = await form.validateFields();
+            // Tính toán số tiền đặt cọc là 10% giá khởi điểm
+            const startingPrice =
+                selectedAuction.Product?.starting_price ||
+                selectedAuction.startingPrice;
+            const depositAmount = startingPrice * 0.1;
+
             const response = await auctionService.registerForAuction(
-                selectedAuction.id
+                selectedAuction.id,
+                depositAmount
             );
             if (response.success) {
                 message.success('Đăng ký tham gia đấu giá thành công');
@@ -584,64 +590,68 @@ const Auctions = () => {
 
                     {/* Registration Modal */}
                     <Modal
-                        title='Đăng ký tham gia đấu giá'
+                        title='Xác nhận đăng ký tham gia đấu giá'
                         open={isRegistrationModalVisible}
+                        onOk={handleRegistrationSubmit}
                         onCancel={() => setIsRegistrationModalVisible(false)}
-                        footer={[
-                            <Button
-                                key='back'
-                                onClick={() =>
-                                    setIsRegistrationModalVisible(false)
-                                }
-                            >
-                                Hủy
-                            </Button>,
-                            <Button
-                                key='submit'
-                                type='primary'
-                                onClick={handleRegistrationSubmit}
-                            >
-                                Xác nhận đăng ký
-                            </Button>
-                        ]}
+                        okText='Xác nhận đăng ký'
+                        cancelText='Hủy'
                     >
-                        <Form form={form} layout='vertical'>
-                            <Form.Item label='Thông tin phiên đấu giá'>
-                                <Space direction='vertical'>
-                                    <Text strong>
-                                        {selectedAuction?.Product?.title}
-                                    </Text>
-                                    <Text type='secondary'>
-                                        Bắt đầu:{' '}
-                                        {new Date(
-                                            selectedAuction?.start_time
-                                        ).toLocaleString()}
-                                    </Text>
-                                    <Text type='secondary'>
-                                        Kết thúc:{' '}
-                                        {new Date(
-                                            selectedAuction?.end_time
-                                        ).toLocaleString()}
-                                    </Text>
-                                </Space>
-                            </Form.Item>
-                            <Form.Item
-                                name='agreement'
-                                valuePropName='checked'
-                                rules={[
-                                    {
-                                        required: true,
-                                        message:
-                                            'Vui lòng đồng ý với điều khoản tham gia'
-                                    }
-                                ]}
-                            >
-                                <Checkbox>
-                                    Tôi đồng ý với các điều khoản và điều kiện
-                                    tham gia đấu giá
-                                </Checkbox>
-                            </Form.Item>
-                        </Form>
+                        {selectedAuction && (
+                            <div style={{ textAlign: 'center' }}>
+                                <Typography.Title level={4}>
+                                    {selectedAuction.Product?.title ||
+                                        selectedAuction.title}
+                                </Typography.Title>
+                                <div style={{ margin: '20px 0' }}>
+                                    <Typography.Text>
+                                        Giá khởi điểm:{' '}
+                                    </Typography.Text>
+                                    <Typography.Text strong>
+                                        {(() => {
+                                            const startingPrice =
+                                                selectedAuction.Product
+                                                    ?.starting_price ||
+                                                selectedAuction.startingPrice;
+                                            return startingPrice
+                                                ? Number(
+                                                      startingPrice
+                                                  ).toLocaleString('vi-VN')
+                                                : '0';
+                                        })()}{' '}
+                                        VNĐ
+                                    </Typography.Text>
+                                </div>
+                                <div style={{ margin: '20px 0' }}>
+                                    <Typography.Text>
+                                        Số tiền đặt cọc cần thanh toán:{' '}
+                                    </Typography.Text>
+                                    <Typography.Title level={3} type='danger'>
+                                        {(() => {
+                                            const startingPrice =
+                                                selectedAuction.Product
+                                                    ?.starting_price ||
+                                                selectedAuction.startingPrice;
+                                            const depositAmount =
+                                                startingPrice * 0.1;
+                                            return depositAmount
+                                                ? Number(
+                                                      depositAmount
+                                                  ).toLocaleString('vi-VN')
+                                                : '0';
+                                        })()}{' '}
+                                        VNĐ
+                                    </Typography.Title>
+                                    <Typography.Text type='secondary'>
+                                        (10% giá khởi điểm)
+                                    </Typography.Text>
+                                </div>
+                                <Typography.Text>
+                                    Bạn có xác nhận đăng ký và đặt cọc để tham
+                                    gia đấu giá không?
+                                </Typography.Text>
+                            </div>
+                        )}
                     </Modal>
 
                     {/* Pagination */}

@@ -12,7 +12,8 @@ const {
   getAuctionBids,
   placeBid,
   registerForAuction,
-  updateRegistrationStatus
+  updateRegistrationStatus,
+  updateDepositStatus
 } = require('../controllers/auctionController');
 const { authenticateToken, checkRole } = require('../middlewares/auth');
 
@@ -51,5 +52,8 @@ router.get('/:id/bids', getAuctionBids);
 
 // Đặt giá cho phiên đấu giá
 router.post('/:id/bids', authenticateToken, placeBid);
+
+// Cập nhật trạng thái đặt cọc
+router.patch('/:auctionId/registrations/:registrationId/deposit', authenticateToken, checkRole(['seller', 'admin']), updateDepositStatus);
 
 module.exports = router;

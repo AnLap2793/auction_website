@@ -200,8 +200,9 @@ const registerForAuction = async (req, res) => {
     try {
         const auctionId = req.params.id;
         const userId = req.user.id;
+        const { depositAmount } = req.body;
 
-        const result = await auctionService.registerForAuction(auctionId, userId);
+        const result = await auctionService.registerForAuction(auctionId, userId, depositAmount);
         
         res.status(201).json(result);
     } catch (error) {
@@ -245,6 +246,24 @@ const updateRegistrationStatus = async (req, res) => {
     }
 };
 
+// Cập nhật trạng thái đặt cọc
+const updateDepositStatus = async (req, res) => {
+    try {
+        const { auctionId, registrationId } = req.params;
+        const { depositStatus } = req.body;
+
+        const result = await auctionService.updateDepositStatus(auctionId, registrationId, depositStatus);
+        
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Lỗi khi cập nhật trạng thái đặt cọc:', error);
+        res.status(400).json({
+            success: false,
+            message: error.message || 'Đã xảy ra lỗi khi cập nhật trạng thái đặt cọc'
+        });
+    }
+};
+
 module.exports = {
     getAllAuctions,
     getAuctionById,
@@ -257,5 +276,6 @@ module.exports = {
     getAuctionBids,
     placeBid,
     registerForAuction,
-    updateRegistrationStatus
+    updateRegistrationStatus,
+    updateDepositStatus
 };

@@ -39,9 +39,9 @@ const auctionService = {
     },
 
     // Đăng ký tham gia phiên đấu giá
-    registerForAuction: async (auctionId) => {
+    registerForAuction: async (auctionId, depositAmount) => {
         try {
-            const response = await axios.post(`/auctions/${auctionId}/register`);
+            const response = await axios.post(`/auctions/${auctionId}/register`, { depositAmount });
             return response.data;
         } catch (error) {
             throw new Error(error.response?.data?.message || 'Không thể đăng ký tham gia đấu giá');
@@ -95,6 +95,19 @@ const auctionService = {
             return response.data;
         } catch (error) {
             throw new Error(error.response?.data?.message || 'Không thể cập nhật trạng thái đăng ký');
+        }
+    },
+
+    // Cập nhật trạng thái đặt cọc
+    updateDepositStatus: async (auctionId, registrationId, depositStatus) => {
+        try {
+            const response = await axios.patch(
+                `/auctions/${auctionId}/registrations/${registrationId}/deposit`,
+                { depositStatus }
+            );
+            return response.data;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Không thể cập nhật trạng thái đặt cọc');
         }
     }
 };

@@ -40,6 +40,7 @@ const DashboardPage = () => {
         users: { total: 0, growth: 0 },
         products: { total: 0, growth: 0 },
         activeAuctions: { total: 0, growth: 0 },
+        completedAuctions: { total: 0, growth: 0 },
         revenue: { total: 0, growth: 0 }
     });
     const [chartData, setChartData] = useState([]);
@@ -72,6 +73,13 @@ const DashboardPage = () => {
                     auction.status === 'active' || auction.status === 'pending'
             );
 
+            // Lọc đấu giá đã kết thúc
+            const completedAuctions = auctionsData.filter(
+                (auction) => auction.status === 'closed'
+            );
+
+            console.log('Completed: ', completedAuctions);
+
             // Lấy dữ liệu giao dịch
             const transactionsResponse =
                 await transactionService.getAllTransactions();
@@ -99,6 +107,10 @@ const DashboardPage = () => {
                 activeAuctions: {
                     total: activeAuctions.length,
                     growth: calculateGrowth(activeAuctions)
+                },
+                completedAuctions: {
+                    total: completedAuctions.length,
+                    growth: calculateGrowth(completedAuctions)
                 },
                 revenue: {
                     total: totalRevenue,
@@ -407,6 +419,39 @@ const DashboardPage = () => {
                                 }
                             />
                             <Progress percent={45} showInfo={false} />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                        <Card loading={loading}>
+                            <Statistic
+                                title='Đấu giá đã kết thúc'
+                                value={dashboardData.completedAuctions.total}
+                                prefix={<GiftOutlined />}
+                                suffix={
+                                    <Tag
+                                        color={
+                                            dashboardData.completedAuctions
+                                                .growth >= 0
+                                                ? 'success'
+                                                : 'error'
+                                        }
+                                        style={{ marginLeft: 8 }}
+                                    >
+                                        {dashboardData.completedAuctions
+                                            .growth >= 0 ? (
+                                            <ArrowUpOutlined />
+                                        ) : (
+                                            <ArrowDownOutlined />
+                                        )}{' '}
+                                        {Math.abs(
+                                            dashboardData.completedAuctions
+                                                .growth
+                                        )}
+                                        %
+                                    </Tag>
+                                }
+                            />
+                            <Progress percent={35} showInfo={false} />
                         </Card>
                     </Col>
                     <Col xs={24} sm={12} md={6}>

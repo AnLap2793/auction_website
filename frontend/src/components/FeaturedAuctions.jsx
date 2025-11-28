@@ -167,7 +167,7 @@ const FeaturedAuctions = () => {
                             >
                                 <Meta
                                     title={
-                                        <Link to={`/auction/${auction.id}`}>
+                                        <Link to={`/auctions/${auction.id}`}>
                                             {auction.Product.title}
                                         </Link>
                                     }

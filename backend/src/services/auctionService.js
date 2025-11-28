@@ -587,7 +587,7 @@ const placeBid = async (bidData) => {
 };
 
 // Đăng ký tham gia phiên đấu giá
-const registerForAuction = async (auctionId, userId) => {
+const registerForAuction = async (auctionId, userId, depositAmount) => {
   try {
     // Kiểm tra xem phiên đấu giá có tồn tại không
     const auction = await Auction.findByPk(auctionId);
@@ -612,23 +612,66 @@ const registerForAuction = async (auctionId, userId) => {
       throw new Error('Bạn đã đăng ký tham gia phiên đấu giá này rồi');
     }
 
+    // Tự động tính toán số tiền đặt cọc là 10% giá khởi điểm
+    const calculatedDepositAmount = auction.starting_price * 0.1;
+
     // Tạo đăng ký mới
     const registration = await AuctionRegistration.create({
       auction_id: auctionId,
       user_id: userId,
       registration_date: new Date(),
-      status: 'pending'
+      status: 'pending',
+      deposit_amount: calculatedDepositAmount,
+      deposit_status: 'pending'
     });
 
     return {
       success: true,
-      message: 'Đăng ký tham gia đấu giá thành công',
+      message: 'Đăng ký tham gia đấu giá thành công, vui lòng thanh toán tiền đặt cọc',
       data: registration
     };
   } catch (error) {
     throw error;
   }
+};
 
+// Cập nhật trạng thái đặt cọc
+const updateDepositStatus = async (auctionId, registrationId, depositStatus) => {
+  try {
+    // Kiểm tra đăng ký tồn tại
+    const registration = await AuctionRegistration.findOne({
+      where: {
+        id: registrationId,
+        auction_id: auctionId
+      }
+    });
+
+    if (!registration) {
+      throw new Error('Không tìm thấy đăng ký đấu giá');
+    }
+
+    // Cập nhật trạng thái đặt cọc
+    registration.deposit_status = depositStatus;
+    
+    // Nếu đã thanh toán đặt cọc, tự động chuyển trạng thái đăng ký thành approved
+    if (depositStatus === 'paid') {
+      registration.status = 'approved';
+    }
+    
+    await registration.save();
+
+    return {
+      success: true,
+      message: 'Cập nhật trạng thái đặt cọc thành công',
+      data: {
+        id: registration.id,
+        deposit_status: registration.deposit_status,
+        status: registration.status
+      }
+    };
+  } catch (error) {
+    throw error;
+  }
 };
 
 // Cập nhật trạng thái đăng ký đấu giá
@@ -700,5 +743,6 @@ module.exports = {
   getAuctionBids,
   placeBid,
   registerForAuction,
-  updateRegistrationStatus
+  updateRegistrationStatus,
+  updateDepositStatus
 };

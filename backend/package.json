@@ -18,7 +18,6 @@
         "redis": "^5.5.5",
         "sequelize": "^6.37.6",
         "socket.io": "^4.8.1",
-        "uuid": "^11.1.0",
         "vnpay": "^2.2.0"
     },
     "name": "auction-website-backend",
@@ -36,6 +35,7 @@
     "devDependencies": {
         "mocha": "^10.2.0",
         "nodemon": "^2.0.22",
-        "socket.io-client": "^4.6.1"
+        "socket.io-client": "^4.8.1",
+        "uuid": "^11.1.0"
     }
 }

@@ -17,8 +17,7 @@ Một trang web đấu giá trực tuyến được xây dựng với React và 
 
 -   React
 -   Vite
--   TypeScript
--   Tailwind CSS
+-   Antd design
 
 ### Backend
 

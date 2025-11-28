@@ -1,23 +1,23 @@
-import 'antd/dist/reset.css';
-import '@ant-design/v5-patch-for-react-19';
+import "antd/dist/reset.css";
+import "@ant-design/v5-patch-for-react-19";
 import {
     BrowserRouter as Router,
     Routes,
     Route,
-    Navigate
-} from 'react-router-dom';
-import { ConfigProvider } from 'antd';
-import React, { useState, useEffect } from 'react';
-import NotFoundPage from './pages/public/NotFoundPage';
-import { AuthProvider } from './context/AuthContext';
-import { SocketProvider } from './context/SocketContext';
-import { isValidAdminToken } from './utils/tokenManager';
-import { userRoutes, protectedUserRoutes } from './routes/UserRoutes';
-import { adminLoginRoute, adminRoutes } from './routes/AdminRoutes';
-import UserLayout from './layouts/UserLayout';
-import AdminLayout from './layouts/AdminLayout';
-import ProtectedRoute from './components/ProtectedRoute';
-import AdminLogin from './pages/admin/AdminLogin';
+    Navigate,
+} from "react-router-dom";
+import { ConfigProvider } from "antd";
+import React, { useState, useEffect } from "react";
+import NotFoundPage from "./pages/public/NotFoundPage";
+import { AuthProvider } from "./context/AuthContext";
+import { SocketProvider } from "./context/SocketContext";
+import { isValidAdminToken } from "./utils/tokenManager";
+import { userRoutes, protectedUserRoutes } from "./routes/UserRoutes";
+import { adminLoginRoute, adminRoutes } from "./routes/AdminRoutes";
+import UserLayout from "./layouts/UserLayout";
+import AdminLayout from "./layouts/AdminLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminLogin from "./pages/admin/AdminLogin";
 
 function App() {
     const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
@@ -88,14 +88,14 @@ function App() {
                                 element={
                                     <ProtectedRoute
                                         isAuthenticated={isAdminAuthenticated}
-                                        redirectPath='/admin/login'
+                                        redirectPath="/admin/login"
                                         useAuthContext={false}
                                         isAdmin={true}
                                     />
                                 }
                             >
                                 <Route
-                                    path='/admin/*'
+                                    path="/admin/*"
                                     element={
                                         <AdminLayout
                                             setIsAdminAuthenticated={
@@ -115,7 +115,7 @@ function App() {
                             </Route>
 
                             {/* 404 Page */}
-                            <Route path='*' element={<NotFoundPage />} />
+                            <Route path="*" element={<NotFoundPage />} />
                         </Routes>
                     </Router>
                 </SocketProvider>
