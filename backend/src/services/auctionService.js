@@ -337,13 +337,18 @@ const updateAuctionStatus = async () => {
     for (const auction of pendingAuctions) {
       await auction.update({ status: 'active' });
       
-      // Emit socket event khi phiên đấu giá bắt đầu
-      const socketService = require('../services/socketService');
-      socketService.emitToAll('auctionStarted', {
-        auction_id: auction.id,
-        message: 'Phiên đấu giá đã bắt đầu',
-        auction: auction
-      });
+      // Emit socket event khi phiên đấu giá bắt đầu (nếu Socket.IO đã được khởi tạo)
+      try {
+        const socketService = require('../services/socketService');
+        socketService.emitToAll('auctionStarted', {
+          auction_id: auction.id,
+          message: 'Phiên đấu giá đã bắt đầu',
+          auction: auction
+        });
+      } catch (socketError) {
+        // Bỏ qua lỗi nếu Socket.IO chưa được khởi tạo (có thể chạy từ scheduled task)
+        console.warn(`Không thể gửi socket event cho auction ${auction.id}:`, socketError.message);
+      }
     }
     
     // Tìm các phiên đấu giá đang ở trạng thái active và đã đến thời gian kết thúc
@@ -385,32 +390,37 @@ const updateAuctionStatus = async () => {
         });
       }
       
-      // Emit socket event khi phiên đấu giá kết thúc
-      const socketService = require('../services/socketService');
-      
-      // Lấy thông tin sản phẩm cho phiên đấu giá
-      const auctionWithDetails = await Auction.findByPk(auction.id, {
-        include: [
-          { model: Product, include: [{ model: ProductImage }] },
-          { 
-            model: User, 
-            as: 'CurrentWinner',
-            attributes: ['id', 'first_name', 'last_name', 'email'] 
-          }
-        ]
-      });
-      
-      socketService.notifyAuctionEnded(auction.id, {
-        auction_id: auction.id,
-        message: 'Phiên đấu giá đã kết thúc',
-        auction: auctionWithDetails,
-        winner: winner ? {
-          id: winner.id,
-          name: `${winner.first_name} ${winner.last_name}`,
-          email: winner.email
-        } : null,
-        winning_bid: auction.current_bid
-      });
+      // Emit socket event khi phiên đấu giá kết thúc (nếu Socket.IO đã được khởi tạo)
+      try {
+        const socketService = require('../services/socketService');
+        
+        // Lấy thông tin sản phẩm cho phiên đấu giá
+        const auctionWithDetails = await Auction.findByPk(auction.id, {
+          include: [
+            { model: Product, include: [{ model: ProductImage }] },
+            { 
+              model: User, 
+              as: 'CurrentWinner',
+              attributes: ['id', 'first_name', 'last_name', 'email'] 
+            }
+          ]
+        });
+        
+        socketService.notifyAuctionEnded(auction.id, {
+          auction_id: auction.id,
+          message: 'Phiên đấu giá đã kết thúc',
+          auction: auctionWithDetails,
+          winner: winner ? {
+            id: winner.id,
+            name: `${winner.first_name} ${winner.last_name}`,
+            email: winner.email
+          } : null,
+          winning_bid: auction.current_bid
+        });
+      } catch (socketError) {
+        // Bỏ qua lỗi nếu Socket.IO chưa được khởi tạo (có thể chạy từ scheduled task)
+        console.warn(`Không thể gửi socket event cho auction ${auction.id}:`, socketError.message);
+      }
     }
     
     return {
