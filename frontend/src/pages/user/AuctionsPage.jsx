@@ -50,6 +50,7 @@ const Auctions = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(false);
     const [registrations, setRegistrations] = useState({});
+    const [userRegistrations, setUserRegistrations] = useState({});
     const [isRegistrationModalVisible, setIsRegistrationModalVisible] =
         useState(false);
     const [selectedAuction, setSelectedAuction] = useState(null);
@@ -100,25 +101,58 @@ const Auctions = () => {
             setAuctions(auctionData);
             setTotalAuctions(totalCount);
 
-            // Lấy số lượt đăng ký cho mỗi phiên đấu giá
+            // Lấy số lượt đăng ký cho mỗi phiên đấu giá và kiểm tra trạng thái đăng ký của user
             const registrationsData = {};
-            for (const auction of auctionData) {
-                try {
-                    const regResponse =
-                        await auctionService.getAuctionRegistrations(
-                            auction.id
+            const userRegistrationsData = {};
+            
+            // Chỉ kiểm tra trạng thái đăng ký nếu user đã đăng nhập
+            if (user) {
+                for (const auction of auctionData) {
+                    try {
+                        const regResponse =
+                            await auctionService.getAuctionRegistrations(
+                                auction.id
+                            );
+                        registrationsData[auction.id] =
+                            regResponse.data.total_registrations;
+                        
+                        // Kiểm tra xem user đã đăng ký chưa (chỉ cho các auction pending)
+                        if (auction.status === 'pending' && regResponse.data.registrations) {
+                            const userRegistration = regResponse.data.registrations.find(
+                                (reg) => reg.user.id === user.id
+                            );
+                            userRegistrationsData[auction.id] = !!userRegistration;
+                        }
+                    } catch (error) {
+                        console.error('Lỗi khi lấy số lượt đăng ký:', error);
+                        message.error(
+                            error.response?.data?.message ||
+                                'Không thể lấy số lượt đăng ký'
                         );
-                    registrationsData[auction.id] =
-                        regResponse.data.total_registrations;
-                } catch (error) {
-                    console.error('Lỗi khi lấy số lượt đăng ký:', error);
-                    message.error(
-                        error.response?.data?.message ||
-                            'Không thể lấy số lượt đăng ký'
-                    );
+                    }
+                }
+            } else {
+                // Nếu user chưa đăng nhập, chỉ lấy số lượt đăng ký
+                for (const auction of auctionData) {
+                    try {
+                        const regResponse =
+                            await auctionService.getAuctionRegistrations(
+                                auction.id
+                            );
+                        registrationsData[auction.id] =
+                            regResponse.data.total_registrations;
+                    } catch (error) {
+                        console.error('Lỗi khi lấy số lượt đăng ký:', error);
+                        message.error(
+                            error.response?.data?.message ||
+                                'Không thể lấy số lượt đăng ký'
+                        );
+                    }
                 }
             }
+            
             setRegistrations(registrationsData);
+            setUserRegistrations(userRegistrationsData);
         } catch (error) {
             message.error('Không thể tải dữ liệu phiên đấu giá');
             console.error(error);
@@ -206,6 +240,11 @@ const Auctions = () => {
             if (response.success) {
                 message.success('Đăng ký tham gia đấu giá thành công');
                 setIsRegistrationModalVisible(false);
+                // Cập nhật trạng thái đăng ký ngay lập tức
+                setUserRegistrations(prev => ({
+                    ...prev,
+                    [selectedAuction.id]: true
+                }));
                 fetchAuctions(); // Refresh danh sách đấu giá
             }
         } catch (error) {
@@ -420,15 +459,25 @@ const Auctions = () => {
                                         }
                                         actions={[
                                             auction.status === 'pending' ? (
-                                                <Button
-                                                    type='primary'
-                                                    icon={<UserAddOutlined />}
-                                                    onClick={() =>
-                                                        handleRegister(auction)
-                                                    }
-                                                >
-                                                    Đăng ký tham gia
-                                                </Button>
+                                                user && userRegistrations[auction.id] ? (
+                                                    <Button
+                                                        type='default'
+                                                        icon={<UserAddOutlined />}
+                                                        disabled
+                                                    >
+                                                        Đã đăng ký
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        type='primary'
+                                                        icon={<UserAddOutlined />}
+                                                        onClick={() =>
+                                                            handleRegister(auction)
+                                                        }
+                                                    >
+                                                        Đăng ký tham gia
+                                                    </Button>
+                                                )
                                             ) : (
                                                 <Link
                                                     to={`/auctions/${auction.id}`}

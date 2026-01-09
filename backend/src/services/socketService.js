@@ -44,6 +44,11 @@ function notifyNewAuction(auctionData) {
   emitToAll('newAuction', auctionData);
 }
 
+// Gửi thông báo khi bid xử lý thất bại
+function notifyBidFailed(auctionId, errorData) {
+  emitToRoom(`auction-${auctionId}`, 'bidFailed', errorData);
+}
+
 module.exports = {
   init,
   getIO,
@@ -52,5 +57,6 @@ module.exports = {
   emitToUser,
   notifyNewBid,
   notifyAuctionEnded,
-  notifyNewAuction
+  notifyNewAuction,
+  notifyBidFailed
 }; 

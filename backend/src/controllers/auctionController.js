@@ -1,15 +1,16 @@
-const auctionService = require('../services/auctionService');
-const cron = require('node-cron');
-const { AuctionRegistration } = require('../models');
+const auctionService = require("../services/auctionService");
+const bidQueueService = require("../services/bidQueueService");
+const cron = require("node-cron");
+const { AuctionRegistration } = require("../models");
 
 // Thiết lập cron job để chạy mỗi phút
-cron.schedule('* * * * *', async () => {
-  try {
-    await auctionService.updateAuctionStatus();
-    console.log('Đã cập nhật trạng thái phiên đấu giá');
-  } catch (error) {
-    console.error('Lỗi khi cập nhật trạng thái phiên đấu giá:', error);
-  }
+cron.schedule("* * * * *", async () => {
+    try {
+        await auctionService.updateAuctionStatus();
+        console.log("Đã cập nhật trạng thái phiên đấu giá");
+    } catch (error) {
+        console.error("Lỗi khi cập nhật trạng thái phiên đấu giá:", error);
+    }
 });
 
 // Lấy danh sách tất cả phiên đấu giá
@@ -23,15 +24,15 @@ const getAllAuctions = async (req, res) => {
             limit: req.query.limit,
             search: req.query.search,
             category_id: req.query.category_id,
-            isAdmin: req.query.isAdmin === 'true' || false // Xác định nếu yêu cầu đến từ admin
+            isAdmin: req.query.isAdmin === "true" || false, // Xác định nếu yêu cầu đến từ admin
         };
-        
+
         const result = await auctionService.getAllAuctions(filters);
         res.json(result);
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -44,7 +45,7 @@ const getAuctionById = async (req, res) => {
     } catch (error) {
         res.status(404).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -56,24 +57,24 @@ const createAuction = async (req, res) => {
             product_id: req.body.product_id,
             start_time: req.body.start_time,
             end_time: req.body.end_time,
-            status: req.body.status || 'pending',
-            bid_increment: req.body.bid_increment
+            status: req.body.status || "pending",
+            bid_increment: req.body.bid_increment,
         };
-        
+
         const result = await auctionService.createAuction(auctionData);
-        
+
         // Thông báo có phiên đấu giá mới qua Socket.IO
-        const socketService = require('../services/socketService');
+        const socketService = require("../services/socketService");
         socketService.notifyNewAuction({
             ...result.data,
-            message: 'Có phiên đấu giá mới vừa được tạo'
+            message: "Có phiên đấu giá mới vừa được tạo",
         });
-        
+
         res.status(201).json(result);
     } catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -86,7 +87,7 @@ const updateAuction = async (req, res) => {
     } catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -99,7 +100,7 @@ const cancelAuction = async (req, res) => {
     } catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -112,87 +113,103 @@ const getAuctionRegistrations = async (req, res) => {
     } catch (error) {
         res.status(404).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
 
 // Thêm endpoint mới để cập nhật trạng thái thủ công (nếu cần)
 const updateAuctionStatus = async (req, res) => {
-  try {
-    const result = await auctionService.updateAuctionStatus();
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
+    try {
+        const result = await auctionService.updateAuctionStatus();
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
 };
 
 // Xóa phiên đấu giá
 const deleteAuction = async (req, res) => {
-  try {
-    const result = await auctionService.deleteAuction(req.params.id);
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
+    try {
+        const result = await auctionService.deleteAuction(req.params.id);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
 };
 
 // Lấy lịch sử đấu giá của một phiên đấu giá
 const getAuctionBids = async (req, res) => {
-  try {
-    const result = await auctionService.getAuctionBids(req.params.id);
-    res.json(result);
-  } catch (error) {
-    res.status(404).json({
-      success: false,
-      message: error.message
-    });
-  }
+    try {
+        const result = await auctionService.getAuctionBids(req.params.id);
+        res.json(result);
+    } catch (error) {
+        res.status(404).json({
+            success: false,
+            message: error.message,
+        });
+    }
 };
 
 // Đặt giá cho một phiên đấu giá
 const placeBid = async (req, res) => {
-  try {
-    // Xác thực người dùng đã đăng nhập
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Bạn cần đăng nhập để đặt giá'
-      });
-    }
-    
-    const bidData = {
-      auction_id: req.params.id,
-      user_id: req.user.id,
-      bid_amount: req.body.bid_amount
-    };
-    
-    const result = await auctionService.placeBid(bidData);
+    try {
+        // Xác thực người dùng đã đăng nhập
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: "Bạn cần đăng nhập để đặt giá",
+            });
+        }
 
-    // Emit socket event khi đặt giá thành công
-    const socketService = require('../services/socketService');
-    socketService.notifyNewBid(req.params.id, {
-      ...result.data,
-      user: {
-        id: req.user.id,
-        first_name: req.user.first_name,
-        last_name: req.user.last_name
-      }
-    });
-    
-    res.status(201).json(result);
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
+        // Kiểm tra giá đặt hợp lệ cơ bản
+        const bid_amount = parseFloat(req.body.bid_amount);
+        if (!bid_amount || isNaN(bid_amount) || bid_amount <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Giá đặt không hợp lệ",
+            });
+        }
+
+        const bidData = {
+            auction_id: req.params.id,
+            user_id: req.user.id,
+            bid_amount: bid_amount,
+            user_info: {
+                id: req.user.id,
+                first_name: req.user.first_name,
+                last_name: req.user.last_name,
+            },
+        };
+
+        // Đưa bid vào queue để xử lý tuần tự
+        const bidId = await bidQueueService.enqueueBid(bidData);
+
+        // Trả về response ngay lập tức với status "đang xử lý"
+        res.status(202).json({
+            success: true,
+            message: "Bid đã được nhận và đang được xử lý",
+            data: {
+                bidId: bidId,
+                auction_id: req.params.id,
+                user_id: req.user.id,
+                bid_amount: bid_amount,
+                status: "processing",
+            },
+        });
+    } catch (error) {
+        console.error("Lỗi khi đưa bid vào queue:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message || "Có lỗi xảy ra khi xử lý đặt giá",
+        });
+    }
 };
 
 // Đăng ký tham gia phiên đấu giá
@@ -203,63 +220,13 @@ const registerForAuction = async (req, res) => {
         const { depositAmount } = req.body;
 
         const result = await auctionService.registerForAuction(auctionId, userId, depositAmount);
-        
+
         res.status(201).json(result);
     } catch (error) {
-        console.error('Lỗi khi đăng ký tham gia đấu giá:', error);
+        console.error("Lỗi khi đăng ký tham gia đấu giá:", error);
         res.status(400).json({
             success: false,
-            message: error.message || 'Đã xảy ra lỗi khi đăng ký tham gia đấu giá'
-        });
-    }
-};
-
-// Cập nhật trạng thái đăng ký đấu giá
-const updateRegistrationStatus = async (req, res) => {
-    try {
-        const auctionId = req.params.auctionId;
-        const registrationId = req.params.registrationId;
-        const { status } = req.body;
-        const userId = req.user.id;
-
-        if (!status) {
-            return res.status(400).json({
-                success: false,
-                message: 'Trạng thái không được để trống'
-            });
-        }
-
-        const result = await auctionService.updateRegistrationStatus(
-            auctionId,
-            registrationId,
-            status,
-            userId
-        );
-        
-        res.status(200).json(result);
-    } catch (error) {
-        console.error('Lỗi khi cập nhật trạng thái đăng ký đấu giá:', error);
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Đã xảy ra lỗi khi cập nhật trạng thái đăng ký đấu giá'
-        });
-    }
-};
-
-// Cập nhật trạng thái đặt cọc
-const updateDepositStatus = async (req, res) => {
-    try {
-        const { auctionId, registrationId } = req.params;
-        const { depositStatus } = req.body;
-
-        const result = await auctionService.updateDepositStatus(auctionId, registrationId, depositStatus);
-        
-        res.status(200).json(result);
-    } catch (error) {
-        console.error('Lỗi khi cập nhật trạng thái đặt cọc:', error);
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Đã xảy ra lỗi khi cập nhật trạng thái đặt cọc'
+            message: error.message || "Đã xảy ra lỗi khi đăng ký tham gia đấu giá",
         });
     }
 };
@@ -276,6 +243,4 @@ module.exports = {
     getAuctionBids,
     placeBid,
     registerForAuction,
-    updateRegistrationStatus,
-    updateDepositStatus
 };

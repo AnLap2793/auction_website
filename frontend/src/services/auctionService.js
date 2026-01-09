@@ -88,28 +88,6 @@ const auctionService = {
         }
     },
 
-    // Cập nhật trạng thái đăng ký đấu giá
-    updateRegistrationStatus: async (auctionId, registrationId, status) => {
-        try {
-            const response = await axios.patch(`/auctions/${auctionId}/registrations/${registrationId}`, { status });
-            return response.data;
-        } catch (error) {
-            throw new Error(error.response?.data?.message || 'Không thể cập nhật trạng thái đăng ký');
-        }
-    },
-
-    // Cập nhật trạng thái đặt cọc
-    updateDepositStatus: async (auctionId, registrationId, depositStatus) => {
-        try {
-            const response = await axios.patch(
-                `/auctions/${auctionId}/registrations/${registrationId}/deposit`,
-                { depositStatus }
-            );
-            return response.data;
-        } catch (error) {
-            throw new Error(error.response?.data?.message || 'Không thể cập nhật trạng thái đặt cọc');
-        }
-    }
 };
 
 export default auctionService;

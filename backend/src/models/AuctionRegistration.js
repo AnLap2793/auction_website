@@ -1,42 +1,56 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const { DataTypes } = require("sequelize");
+const sequelize = require("../config/database");
 
-const AuctionRegistration = sequelize.define('AuctionRegistration', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
-  auction_id: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'auctions',
-      key: 'id'
+const AuctionRegistration = sequelize.define(
+    "AuctionRegistration",
+    {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true,
+        },
+        auction_id: {
+            type: DataTypes.UUID,
+            allowNull: false,
+            references: {
+                model: "auctions",
+                key: "id",
+            },
+        },
+        user_id: {
+            type: DataTypes.UUID,
+            allowNull: false,
+            references: {
+                model: "users",
+                key: "id",
+            },
+        },
+        registration_date: {
+            type: DataTypes.DATE,
+            allowNull: false,
+            defaultValue: DataTypes.NOW,
+        },
+        status: {
+            type: DataTypes.ENUM("pending", "approved", "rejected"),
+            allowNull: false,
+            defaultValue: "pending",
+        },
+        deposit_amount: {
+            type: DataTypes.DECIMAL(15, 2),
+            allowNull: true,
+            defaultValue: null,
+        },
+        deposit_status: {
+            type: DataTypes.ENUM("pending", "paid", "refunded"),
+            allowNull: true,
+            defaultValue: "pending",
+        },
+    },
+    {
+        timestamps: false,
+        tableName: "auction_registrations",
+        underscored: true,
     }
-  },
-  user_id: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'users',
-      key: 'id'
-    }
-  },
-  registration_date: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW
-  },
-  status: {
-    type: DataTypes.ENUM('pending', 'approved', 'rejected'),
-    allowNull: false,
-    defaultValue: 'pending'
-  }
-}, {
-  timestamps: false,
-  tableName: 'auction_registrations',
-  underscored: true
-});
+);
 
-module.exports = AuctionRegistration; 
+module.exports = AuctionRegistration;

@@ -50,6 +50,16 @@ const transactionService = {
         } catch (error) {
             throw error.response?.data || error.message;
         }
+    },
+
+    // Lấy deposit transaction của user cho một auction cụ thể
+    getUserDepositTransaction: async (auctionId, userId) => {
+        try {
+            const response = await axios.get(`/transactions/auction/${auctionId}/user/${userId}/deposit`);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || error.message;
+        }
     }
 };
 
